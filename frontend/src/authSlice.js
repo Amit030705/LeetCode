@@ -6,7 +6,7 @@ const getSerializableError = (error) => {
   if (error.response) {
     // Axios error with response
     return {
-      message: error.response.data?.message || error.message || 'Something went wrong',
+      message: error.response.data?.message || error.response.data || error.message || 'Something went wrong',
       status: error.response.status,
       data: error.response.data
     };
@@ -44,6 +44,42 @@ export const loginUser = createAsyncThunk(
     try {
       const response = await axiosClient.post('/user/login', credentials);
       return response.data.user;
+    } catch (error) {
+      return rejectWithValue(getSerializableError(error));
+    }
+  }
+);
+
+export const googleAuthUser = createAsyncThunk(
+  'auth/google',
+  async (credential, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.post('/user/google', { credential });
+      return response.data.user;
+    } catch (error) {
+      return rejectWithValue(getSerializableError(error));
+    }
+  }
+);
+
+export const forgotPassword = createAsyncThunk(
+  'auth/forgotPassword',
+  async (emailId, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.post('/user/forgot-password', { emailId });
+      return response.data.message;
+    } catch (error) {
+      return rejectWithValue(getSerializableError(error));
+    }
+  }
+);
+
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ token, password }, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.post(`/user/reset-password/${token}`, { password });
+      return response.data.message;
     } catch (error) {
       return rejectWithValue(getSerializableError(error));
     }
@@ -119,6 +155,23 @@ const authSlice = createSlice({
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Something went wrong';
+        state.isAuthenticated = false;
+        state.user = null;
+      })
+
+      // Google Auth Cases
+      .addCase(googleAuthUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(googleAuthUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isAuthenticated = !!action.payload;
+        state.user = action.payload;
+      })
+      .addCase(googleAuthUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Google sign-in failed';
         state.isAuthenticated = false;
         state.user = null;
       })

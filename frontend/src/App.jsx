@@ -1,6 +1,11 @@
 import {Routes, Route ,Navigate} from "react-router";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Contests from "./pages/Contests";
+import Profile from "./pages/Profile";
+import Resources from "./pages/Resources";
 import Homepage from "./pages/Homepage";
 import { useDispatch, useSelector } from 'react-redux';
 import { checkAuth } from "./authSlice";
@@ -32,9 +37,16 @@ function App(){
   return(
   <>
     <Routes>
-      <Route path="/" element={isAuthenticated ?<Homepage></Homepage>:<Navigate to="/signup" />}></Route>
+      <Route path="/" element={isAuthenticated ?<Homepage></Homepage>:<Navigate to="/login" />}></Route>
+      <Route path="/dashboard" element={isAuthenticated ?<Homepage></Homepage>:<Navigate to="/login" />}></Route>
+      <Route path="/problems" element={isAuthenticated ?<Homepage></Homepage>:<Navigate to="/login" />}></Route>
+      <Route path="/contests" element={isAuthenticated ?<Contests />:<Navigate to="/login" />}></Route>
+      <Route path="/resources" element={isAuthenticated ?<Resources />:<Navigate to="/login" />}></Route>
+      <Route path="/profile" element={isAuthenticated ?<Profile />:<Navigate to="/login" />}></Route>
       <Route path="/login" element={isAuthenticated?<Navigate to="/" />:<Login></Login>}></Route>
       <Route path="/signup" element={isAuthenticated?<Navigate to="/" />:<Signup></Signup>}></Route>
+      <Route path="/forgot-password" element={isAuthenticated?<Navigate to="/" />:<ForgotPassword />}></Route>
+      <Route path="/reset-password/:token" element={isAuthenticated?<Navigate to="/" />:<ResetPassword />}></Route>
       <Route path="/admin" element={isAuthenticated && user?.role === 'admin' ? <Admin /> : <Navigate to="/" />} />
       <Route path="/admin/create" element={isAuthenticated && user?.role === 'admin' ? <AdminPanel /> : <Navigate to="/" />} />
       <Route path="/admin/delete" element={isAuthenticated && user?.role === 'admin' ? <AdminDelete /> : <Navigate to="/" />} />

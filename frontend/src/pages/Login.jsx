@@ -1,19 +1,88 @@
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, NavLink } from 'react-router'; 
-import { loginUser } from "../authSlice";
-import { useEffect, useState } from 'react';
-
+import { NavLink, useNavigate } from 'react-router';
+import { GoogleLogin } from '@react-oauth/google';
+import toast from 'react-hot-toast';
+import { AlertCircle, ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react';
+import { googleAuthUser, loginUser } from '../authSlice';
 
 const loginSchema = z.object({
-  emailId: z.string().email("Invalid Email"),
-  password: z.string().min(8, "Password is too weak") 
+  emailId: z.string().email('Invalid Email'),
+  password: z.string().min(8, 'Password is too weak'),
 });
+
+function BrandMark() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#1a73e8] text-lg font-semibold text-white shadow-[0_14px_30px_rgba(26,115,232,0.28)]">
+        L
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-white">LeecoAI</p>
+        <p className="text-xs font-medium text-slate-400">Developer workspace</p>
+      </div>
+    </div>
+  );
+}
+
+function FloatingInput({
+  id,
+  label,
+  type = 'text',
+  icon: Icon,
+  error,
+  registration,
+  rightAction,
+}) {
+  return (
+    <div className="space-y-2">
+      <div
+        className={`group relative rounded-2xl border bg-slate-950/70 transition-all duration-200 ${
+          error
+            ? 'border-red-300 shadow-[0_0_0_4px_rgba(239,68,68,0.08)]'
+            : 'border-white/10 shadow-sm hover:border-cyan-300/30 focus-within:border-cyan-300/50 focus-within:shadow-[0_0_0_4px_rgba(34,211,238,0.10)]'
+        }`}
+      >
+        {Icon && (
+          <Icon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-[#1a73e8]" />
+        )}
+        <input
+          id={id}
+          type={type}
+          placeholder=" "
+          aria-invalid={error ? 'true' : 'false'}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={`peer h-14 w-full rounded-2xl bg-transparent px-4 pb-2 pt-6 text-[15px] font-medium text-white outline-none transition placeholder:text-transparent ${
+            Icon ? 'pl-12' : ''
+          } ${rightAction ? 'pr-14' : ''}`}
+          {...registration}
+        />
+        <label
+          htmlFor={id}
+          className={`pointer-events-none absolute top-2 text-xs font-medium transition-all duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-[15px] peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-medium ${
+            Icon ? 'left-12' : 'left-4'
+          } ${error ? 'text-red-300' : 'text-slate-400 peer-focus:text-cyan-200'}`}
+        >
+          {label}
+        </label>
+        {rightAction}
+      </div>
+      {error && (
+        <p id={`${id}-error`} className="flex items-center gap-1.5 text-sm font-medium text-red-600">
+          <AlertCircle className="h-4 w-4" />
+          {error.message}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isAuthenticated, loading, error } = useSelector((state) => state.auth);
@@ -21,7 +90,7 @@ function Login() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(loginSchema) }); // Using renamed schema
+  } = useForm({ resolver: zodResolver(loginSchema) });
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -30,92 +99,142 @@ function Login() {
   }, [isAuthenticated, navigate]);
 
   const onSubmit = (data) => {
-    dispatch(loginUser(data));
+    dispatch(loginUser(data))
+      .unwrap()
+      .then(() => toast.success('Signed in successfully'))
+      .catch((err) => toast.error(err?.message || 'Login failed'));
+  };
+
+  const handleGoogleSuccess = (credentialResponse) => {
+    if (!credentialResponse.credential) {
+      toast.error('Google did not return a valid credential');
+      return;
+    }
+
+    dispatch(googleAuthUser(credentialResponse.credential))
+      .unwrap()
+      .then(() => toast.success('Signed in with Google'))
+      .catch((err) => toast.error(err?.message || 'Google sign-in failed'));
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-base-200"> {/* Added bg for contrast */}
-      <div className="card w-96 bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title justify-center text-3xl mb-6">Leetcode</h2> {/* Added mb-6 */}
+    <main className="login-page-shell min-h-screen bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_85%_0%,rgba(139,92,246,0.20),transparent_32%),linear-gradient(180deg,#020617_0%,#08111f_45%,#020617_100%)] px-4 py-8 text-white antialiased sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center justify-center">
+        <section className="login-card-fade w-full max-w-[440px] rounded-[28px] border border-white/10 bg-white/[0.065] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl sm:p-8">
+          <div className="mb-10">
+            <BrandMark />
+          </div>
 
-          
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="form-control"> {/* Removed mt-4 from first form-control for tighter spacing to title or global error */}
-              <label className="label"> {/* Removed mb-1, default spacing should be fine */}
-                <span className="label-text">Email</span>
-              </label>
-              <input
-                type="email"
-                placeholder="john@example.com"
-                className={`input input-bordered w-full ${errors.emailId ? 'input-error' : ''}`} 
-                {...register('emailId')}
-              />
-              {errors.emailId && (
-                <span className="text-error text-sm mt-1">{errors.emailId.message}</span>
-              )}
+          <div className="space-y-2">
+            <h1 className="text-4xl font-semibold tracking-normal text-white">Sign in</h1>
+            <p className="text-[15px] leading-6 text-slate-400">Use your account to continue</p>
+          </div>
+
+          {error && (
+            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{typeof error === 'string' ? error : 'Unable to sign in. Please try again.'}</span>
             </div>
+          )}
 
-            <div className="form-control mt-4">
-              <label className="label">
-                <span className="label-text">Password</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className={`input input-bordered w-full pr-10 ${errors.password ? 'input-error' : ''}`}
-                  {...register('password')}
-                />
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+            <FloatingInput
+              id="emailId"
+              label="Email or phone"
+              type="email"
+              icon={Mail}
+              error={errors.emailId}
+              registration={register('emailId')}
+            />
+
+            <FloatingInput
+              id="password"
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              icon={LockKeyhole}
+              error={errors.password}
+              registration={register('password')}
+              rightAction={
                 <button
                   type="button"
-                  className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
-              </div>
-              {errors.password && (
-                <span className="text-error text-sm mt-1">{errors.password.message}</span>
-              )}
+              }
+            />
+
+            <div className="flex justify-start">
+              <NavLink
+                to="/forgot-password"
+                className="rounded-full px-1 text-sm font-semibold text-[#1a73e8] transition hover:text-[#1558b0] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/25"
+              >
+                Forgot password?
+              </NavLink>
             </div>
 
-            <div className="form-control mt-8 flex justify-center">
-              <button
-                type="submit"
-                className={`btn btn-primary ${loading ? 'loading btn-disabled' : ''}`} // Added btn-disabled for better UX with loading
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="loading loading-spinner"></span>
-                    Logging in...
-                  </>
-                ) : 'Login'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="group flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#1a73e8] px-5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(26,115,232,0.28)] transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:bg-[#1669d6] hover:shadow-[0_18px_34px_rgba(26,115,232,0.34)] focus:outline-none focus:ring-4 focus:ring-[#1a73e8]/20 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:scale-100"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </>
+              )}
+            </button>
           </form>
-          <div className="text-center mt-6">
-            <span className="text-sm">
-              Don't have an account?{' '} {/* Adjusted text slightly */}
-              <NavLink to="/signup" className="link link-primary">
-                Sign Up
-              </NavLink>
-            </span>
+
+          <div className="my-7 flex items-center gap-4">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">or</span>
+            <div className="h-px flex-1 bg-slate-200" />
           </div>
-        </div>
+
+          <div className="overflow-hidden rounded-full border border-white/10 bg-white p-1 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:border-cyan-300/30">
+            {googleClientId ? (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => toast.error('Google sign-in was cancelled')}
+                theme="outline"
+                size="large"
+                text="continue_with"
+                shape="pill"
+                width="390"
+                useOneTap={false}
+              />
+            ) : (
+              <button
+                type="button"
+                className="flex h-11 w-full items-center justify-center rounded-full px-5 text-sm font-semibold text-slate-500"
+                onClick={() => toast.error('Add VITE_GOOGLE_CLIENT_ID in frontend/.env')}
+              >
+                Configure Google Sign-In
+              </button>
+            )}
+          </div>
+
+          <div className="mt-8 text-center text-sm text-slate-400">
+            New to LeecoAI?{' '}
+            <NavLink
+              to="/signup"
+              className="font-semibold text-[#1a73e8] transition hover:text-[#1558b0] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/25"
+            >
+              Create account
+            </NavLink>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
 

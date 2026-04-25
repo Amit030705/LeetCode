@@ -14,8 +14,14 @@ const validate = (data)=>{
     if(!validator.isEmail(data.emailId))
         throw new Error("Invalid Email");
 
-    if(data.password.length < 6)
-        throw new Error("Password must be at least 6 characters");
+    if(data.firstName.length < 3 || data.firstName.length > 20)
+        throw new Error("First name must be between 3 and 20 characters");
+
+    if(data.lastName && (data.lastName.length < 3 || data.lastName.length > 20))
+        throw new Error("Last name must be between 3 and 20 characters");
+
+    if(data.password.length < 8)
+        throw new Error("Password must be at least 8 characters");
 }
 
 module.exports = validate;

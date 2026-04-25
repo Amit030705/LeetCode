@@ -13,8 +13,15 @@ const cors = require('cors')
 
 // console.log("Hello")
 
+app.set('trust proxy', 1);
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:5173',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:5174'
+    ],
     credentials: true 
 }))
 
@@ -48,4 +55,3 @@ const InitalizeConnection = async ()=>{
 
 
 InitalizeConnection();
-

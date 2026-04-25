@@ -45,7 +45,7 @@ const Editorial = ({ secureUrl, thumbnailUrl, duration }) => {
 
   return (
     <div 
-      className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden shadow-lg"
+      className="relative mx-auto w-full max-w-3xl overflow-hidden rounded-[24px] border border-white/10 bg-slate-950 shadow-[0_24px_80px_rgba(0,0,0,0.32)]"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
@@ -55,19 +55,19 @@ const Editorial = ({ secureUrl, thumbnailUrl, duration }) => {
         src={secureUrl}
         poster={thumbnailUrl}
         onClick={togglePlayPause}
-        className="w-full aspect-video bg-black cursor-pointer"
+        className="aspect-video w-full cursor-pointer bg-black"
       />
       
       {/* Video Controls Overlay */}
       <div 
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity ${
+        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/85 to-transparent p-4 transition-opacity ${
           isHovering || !isPlaying ? 'opacity-100' : 'opacity-0'
         }`}
       >
         {/* Play/Pause Button */}
         <button
           onClick={togglePlayPause}
-          className="btn btn-circle btn-primary mr-3"
+          className="mr-3 inline-grid h-11 w-11 place-items-center rounded-full bg-cyan-300 text-slate-950 shadow-[0_14px_30px_rgba(34,211,238,0.22)] transition hover:bg-cyan-200"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
@@ -92,7 +92,7 @@ const Editorial = ({ secureUrl, thumbnailUrl, duration }) => {
                 videoRef.current.currentTime = Number(e.target.value);
               }
             }}
-            className="range range-primary range-xs flex-1"
+            className="h-1 flex-1 accent-cyan-300"
           />
           <span className="text-white text-sm ml-2">
             {formatTime(duration)}

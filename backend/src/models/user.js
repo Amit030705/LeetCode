@@ -21,6 +21,20 @@ const userSchema = new Schema({
         lowercase:true,
         immutable: true,
     },
+    profileImage:{
+        type:String,
+        default:""
+    },
+    googleId:{
+        type:String,
+        unique:true,
+        sparse:true
+    },
+    authProvider:{
+        type:String,
+        enum:['local','google','local_google'],
+        default:'local'
+    },
     age:{
         type:Number,
         min:6,
@@ -38,8 +52,13 @@ const userSchema = new Schema({
         }],
     },
     password:{
-        type:String,
-        required: true
+        type:String
+    },
+    resetPasswordToken:{
+        type:String
+    },
+    resetPasswordExpires:{
+        type:Date
     }
 },{
     timestamps:true

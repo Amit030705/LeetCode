@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Home, RefreshCw, Zap,Video } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, Video } from 'lucide-react';
 import { NavLink } from 'react-router';
 
 function Admin() {
-  const [selectedOption, setSelectedOption] = useState(null);
-
   const adminOptions = [
     {
       id: 'create',
