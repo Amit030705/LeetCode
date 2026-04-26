@@ -1,5 +1,6 @@
 const User = require('../models/user');
 const Problem = require('../models/problem');
+const Submission = require('../models/submission');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 
@@ -130,8 +131,35 @@ const getPublicProfile = async (req, res) => {
   }
 };
 
+const getUserActivity = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const submissions = await Submission.find({
+      userId: userId,
+      status: 'accepted'
+    }).select('createdAt');
+
+    const activityData = {};
+    submissions.forEach(sub => {
+      const dateStr = sub.createdAt.toISOString().split('T')[0];
+      if (activityData[dateStr]) {
+        activityData[dateStr]++;
+      } else {
+        activityData[dateStr] = 1;
+      }
+    });
+
+    res.status(200).json(activityData);
+  } catch (error) {
+    console.error('Error fetching user activity:', error);
+    res.status(500).json({ message: 'Failed to fetch activity data' });
+  }
+};
+
 module.exports = {
   uploadProfileImage,
   searchUsers,
-  getPublicProfile
+  getPublicProfile,
+  getUserActivity
 };

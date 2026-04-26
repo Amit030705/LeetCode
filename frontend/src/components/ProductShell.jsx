@@ -333,3 +333,54 @@ export function EmptyState({ icon: Icon = CheckCircle2, title, description, acti
     </div>
   );
 }
+
+export function Heatmap({ activityData = {} }) {
+  const daysInYear = 364; // 52 weeks * 7 days
+  const today = new Date();
+  const days = [];
+
+  for (let i = daysInYear - 1; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${dayStr}`;
+    
+    const count = activityData[dateStr] || 0;
+    days.push({ date: dateStr, count });
+  }
+
+  const getColor = (count) => {
+    if (count === 0) return 'bg-slate-800';
+    if (count === 1) return 'bg-emerald-900';
+    if (count <= 3) return 'bg-emerald-700';
+    if (count <= 5) return 'bg-emerald-500';
+    return 'bg-emerald-400';
+  };
+
+  return (
+    <div className="flex flex-col gap-2 overflow-x-auto pb-2 custom-scrollbar">
+      <div className="grid grid-cols-[repeat(52,minmax(0,1fr))] grid-rows-7 grid-flow-col gap-[3px] min-w-max">
+        {days.map((day, index) => (
+          <div
+            key={index}
+            title={`${day.count} submissions on ${day.date}`}
+            className={cx('h-3 w-3 sm:h-3.5 sm:w-3.5 rounded-[2px]', getColor(day.count))}
+          />
+        ))}
+      </div>
+      <div className="flex items-center justify-end gap-2 text-xs text-slate-500 mt-2">
+        <span>Less</span>
+        <div className="flex gap-[3px]">
+          <div className="h-3 w-3 rounded-[2px] bg-slate-800"></div>
+          <div className="h-3 w-3 rounded-[2px] bg-emerald-900"></div>
+          <div className="h-3 w-3 rounded-[2px] bg-emerald-700"></div>
+          <div className="h-3 w-3 rounded-[2px] bg-emerald-500"></div>
+          <div className="h-3 w-3 rounded-[2px] bg-emerald-400"></div>
+        </div>
+        <span>More</span>
+      </div>
+    </div>
+  );
+}

@@ -20,26 +20,16 @@ import {
   ProductShell,
   SkeletonBlock,
   StatPill,
+  Heatmap
 } from '../components/ProductShell';
-import { cx, formatNumber, formatTag, getProblemTag, ui } from '../utils/uiHelpers';
+import { cx, formatNumber, formatTag, getProblemTag, ui, calculateStreaks } from '../utils/uiHelpers';
 
 // Reusing some of the helper components from Profile.jsx but adapted for public view
 function getCountByDifficulty(items, difficulty) {
   return items.filter((item) => item?.difficulty === difficulty).length;
 }
 
-function Heatmap({ solvedCount }) {
-  const days = Array.from({ length: 98 }, (_, index) => (index * 7 + solvedCount * 3) % 5);
-  const colors = ['bg-slate-800', 'bg-emerald-950', 'bg-emerald-800', 'bg-emerald-600', 'bg-emerald-400'];
 
-  return (
-    <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-1.5">
-      {days.map((level, index) => (
-        <div key={index} className={cx('aspect-square rounded-[3px]', colors[level])} />
-      ))}
-    </div>
-  );
-}
 
 function DonutChart({ easy, medium, hard }) {
   const total = easy + medium + hard;
@@ -84,14 +74,19 @@ function DonutChart({ easy, medium, hard }) {
 function PublicProfile() {
   const { userId } = useParams();
   const [profileData, setProfileData] = useState(null);
+  const [activityData, setActivityData] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
       try {
-        const response = await axiosClient.get(`/users/${userId}`);
-        setProfileData(response.data);
+        const [profileResponse, activityResponse] = await Promise.all([
+          axiosClient.get(`/users/${userId}`),
+          axiosClient.get(`/users/${userId}/activity`).catch(() => ({ data: {} })),
+        ]);
+        setProfileData(profileResponse.data);
+        setActivityData(activityResponse.data || {});
       } catch (error) {
         toast.error('Could not load profile');
       } finally {
@@ -117,8 +112,10 @@ function PublicProfile() {
     const acceptanceRate = submissions ? Math.min(96, Math.round((accepted / submissions) * 100)) : 0;
     const rank = Math.max(1, 5000 - solved * 19);
 
-    return { solved, total: totalProblems, easy, medium, hard, submissions, acceptanceRate, rank };
-  }, [profileData]);
+    const { currentStreak, maxStreak } = calculateStreaks(activityData);
+
+    return { solved, total: totalProblems, easy, medium, hard, submissions, acceptanceRate, rank, currentStreak, maxStreak };
+  }, [profileData, activityData]);
 
   if (loading) {
     return (
@@ -195,7 +192,7 @@ function PublicProfile() {
             <div className="mb-5">
               <h2 className={ui.typography.h2}>Activity Heatmap</h2>
             </div>
-            <Heatmap solvedCount={stats.solved} />
+            <Heatmap activityData={activityData} />
           </GlassCard>
 
           <GlassCard animate={false} className="p-5">

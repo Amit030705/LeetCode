@@ -27,8 +27,9 @@ import {
   ProductShell,
   SkeletonBlock,
   StatPill,
+  Heatmap
 } from '../components/ProductShell';
-import { cx, formatNumber, formatTag, getProblemTag, ui } from '../utils/uiHelpers';
+import { cx, formatNumber, formatTag, getProblemTag, ui, calculateStreaks } from '../utils/uiHelpers';
 
 function getCountByDifficulty(items, difficulty) {
   return items.filter((item) => item.difficulty === difficulty).length;
@@ -96,18 +97,7 @@ function Avatar({ user }) {
   );
 }
 
-function Heatmap({ solvedCount }) {
-  const days = Array.from({ length: 98 }, (_, index) => (index * 7 + solvedCount * 3) % 5);
-  const colors = ['bg-slate-800', 'bg-emerald-950', 'bg-emerald-800', 'bg-emerald-600', 'bg-emerald-400'];
 
-  return (
-    <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-1.5">
-      {days.map((level, index) => (
-        <div key={index} title={`${level} submissions`} className={cx('aspect-square rounded-[3px]', colors[level])} />
-      ))}
-    </div>
-  );
-}
 
 function DonutChart({ easy, medium, hard }) {
   const total = easy + medium + hard;
@@ -187,18 +177,21 @@ function Profile() {
   const { user } = useSelector((state) => state.auth);
   const [problems, setProblems] = useState([]);
   const [solvedProblems, setSolvedProblems] = useState([]);
+  const [activityData, setActivityData] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const [problemResponse, solvedResponse] = await Promise.all([
+        const [problemResponse, solvedResponse, activityResponse] = await Promise.all([
           axiosClient.get('/problem/getAllProblem'),
           axiosClient.get('/problem/problemSolvedByUser').catch(() => ({ data: [] })),
+          axiosClient.get(`/users/${user._id}/activity`).catch(() => ({ data: {} })),
         ]);
         setProblems(Array.isArray(problemResponse.data) ? problemResponse.data : []);
         setSolvedProblems(Array.isArray(solvedResponse.data) ? solvedResponse.data : []);
+        setActivityData(activityResponse.data || {});
       } catch (error) {
         toast.error(error?.response?.data?.message || 'Could not load dashboard');
       } finally {
@@ -220,13 +213,15 @@ function Profile() {
     const acceptanceRate = submissions ? Math.min(96, Math.round((accepted / submissions) * 100)) : 0;
     const rank = Math.max(1, 5000 - solved * 19);
 
-    return { solved, total, easy, medium, hard, submissions, acceptanceRate, rank };
-  }, [problems, solvedProblems]);
+    const { currentStreak, maxStreak } = calculateStreaks(activityData);
+
+    return { solved, total, easy, medium, hard, submissions, acceptanceRate, rank, currentStreak, maxStreak };
+  }, [problems, solvedProblems, activityData]);
 
   const recentSolved = solvedProblems.slice(-5).reverse();
   const recommendations = problems.filter((problem) => !solvedProblems.some((solved) => solved._id === problem._id)).slice(0, 5);
   const badges = [
-    { title: 'Consistency Builder', meta: '12 day current streak', icon: Flame },
+    { title: 'Consistency Builder', meta: `${stats.currentStreak} day current streak`, icon: Flame },
     { title: 'Array Specialist', meta: `${formatNumber(getCountByDifficulty(solvedProblems, 'easy'))} easy solves`, icon: Award },
     { title: 'Submission Ready', meta: `${formatNumber(stats.submissions)} total submissions`, icon: Send },
   ];
@@ -281,7 +276,7 @@ function Profile() {
                   </div>
                   <div className="rounded-lg border border-slate-800 bg-slate-950/46 p-3">
                     <p className="text-xs text-slate-500">Streak</p>
-                    <p className="mt-1 font-semibold text-slate-50">12 days</p>
+                    <p className="mt-1 font-semibold text-slate-50">{stats.currentStreak} days</p>
                   </div>
                 </div>
               </div>
@@ -302,7 +297,7 @@ function Profile() {
                   <h2 className={ui.typography.h2}>Submission Activity</h2>
                   <p className={cx(ui.typography.body, 'mt-1')}>Daily activity across the last fourteen weeks.</p>
                 </div>
-                <Heatmap solvedCount={stats.solved} />
+                <Heatmap activityData={activityData} />
               </GlassCard>
 
               <GlassCard animate={false} className="p-5">

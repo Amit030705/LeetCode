@@ -103,3 +103,50 @@ export const getPopularityScore = (problem, index = 0) => {
 };
 
 export const formatNumber = (value) => new Intl.NumberFormat('en-US').format(value || 0);
+
+export function calculateStreaks(activityData) {
+  if (!activityData) return { currentStreak: 0, maxStreak: 0 };
+  
+  const today = new Date();
+  let currentStreak = 0;
+  let maxStreak = 0;
+  let tempStreak = 0;
+
+  // Max streak
+  for (let i = 364; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${dayStr}`;
+
+    if (activityData[dateStr] > 0) {
+      tempStreak++;
+      maxStreak = Math.max(maxStreak, tempStreak);
+    } else {
+      tempStreak = 0;
+    }
+  }
+
+  // Current streak (go backwards from today)
+  for (let i = 0; i < 365; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${dayStr}`;
+
+    if (activityData[dateStr] > 0) {
+      currentStreak++;
+    } else if (i === 0) {
+      // It's today, it's ok if they haven't solved yet
+      continue;
+    } else {
+      break;
+    }
+  }
+
+  return { currentStreak, maxStreak };
+}
