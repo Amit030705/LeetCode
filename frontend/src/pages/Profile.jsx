@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
+import { useRef } from 'react';
 import {
   Award,
   BarChart3,
@@ -13,8 +14,11 @@ import {
   Target,
   Trophy,
   UserRound,
+  Camera,
+  Loader2,
 } from 'lucide-react';
 import axiosClient from '../utils/axiosClient';
+import { updateUserImage } from '../authSlice';
 import {
   DifficultyBadge,
   EmptyState,
@@ -31,13 +35,63 @@ function getCountByDifficulty(items, difficulty) {
 }
 
 function Avatar({ user }) {
-  if (user?.profileImage) {
-    return <img src={user.profileImage} alt={user.firstName || 'Profile'} className="h-20 w-20 rounded-lg object-cover ring-1 ring-slate-700" />;
-  }
+  const dispatch = useDispatch();
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploading(true);
+    try {
+      const response = await axiosClient.post('/users/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      dispatch(updateUserImage(response.data.user.profileImage));
+      toast.success('Profile picture updated successfully');
+    } catch (error) {
+      toast.error('Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const getAvatarContent = () => {
+    if (user?.profileImage) {
+      return <img src={user.profileImage} alt={user.firstName || 'Profile'} className="h-20 w-20 rounded-lg object-cover ring-1 ring-slate-700" />;
+    }
+    return (
+      <div className="grid h-20 w-20 place-items-center rounded-lg bg-blue-500/15 text-3xl font-semibold text-blue-200 ring-1 ring-blue-400/20">
+        {(user?.firstName || user?.username || 'U').charAt(0).toUpperCase()}
+      </div>
+    );
+  };
 
   return (
-    <div className="grid h-20 w-20 place-items-center rounded-lg bg-blue-500/15 text-3xl font-semibold text-blue-200 ring-1 ring-blue-400/20">
-      {(user?.firstName || user?.username || 'U').charAt(0).toUpperCase()}
+    <div className="relative group cursor-pointer" onClick={() => !uploading && fileInputRef.current?.click()}>
+      {getAvatarContent()}
+      <div className="absolute inset-0 grid place-items-center rounded-lg bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+        {uploading ? <Loader2 className="h-6 w-6 animate-spin text-white" /> : <Camera className="h-6 w-6 text-white" />}
+      </div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageChange}
+        accept="image/*"
+        className="hidden"
+      />
     </div>
   );
 }

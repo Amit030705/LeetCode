@@ -10,6 +10,8 @@ import Profile from './pages/Profile';
 import ResetPassword from './pages/ResetPassword';
 import Signup from './pages/Signup';
 import AdminPanel from './pages/AdminPanel';
+import UserSearch from './pages/UserSearch';
+import PublicProfile from './pages/PublicProfile';
 
 function RequireAuth({ children }) {
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -61,6 +63,22 @@ function App() {
         element={
           <RequireAuth>
             <Profile />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/users/search"
+        element={
+          <RequireAuth>
+            <UserSearch />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/user/:userId"
+        element={
+          <RequireAuth>
+            <PublicProfile />
           </RequireAuth>
         }
       />

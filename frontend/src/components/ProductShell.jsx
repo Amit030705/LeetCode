@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import {
@@ -81,6 +81,17 @@ export function ProductNavbar() {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
   const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/users/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      setOpen(false);
+    }
+  };
 
   const handleLogout = () => {
     dispatch(logoutUser());
@@ -96,6 +107,16 @@ export function ProductNavbar() {
           {navItems.map((item) => (
             <NavItem key={item.to} item={item} pathname={pathname} />
           ))}
+          <form onSubmit={handleSearch} className="relative ml-4">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-48 rounded-md border border-slate-700 bg-slate-900 pl-9 pr-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+            />
+          </form>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
@@ -135,6 +156,16 @@ export function ProductNavbar() {
           className="border-t border-slate-800 bg-slate-950/96 px-4 py-3 md:hidden"
         >
           <div className="mx-auto max-w-[1440px] space-y-1">
+            <form onSubmit={handleSearch} className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </form>
             {navItems.map((item) => (
               <NavItem key={item.to} item={item} pathname={pathname} onClick={() => setOpen(false)} />
             ))}

@@ -122,6 +122,11 @@ const authSlice = createSlice({
     error: null
   },
   reducers: {
+    updateUserImage: (state, action) => {
+      if (state.user) {
+        state.user.profileImage = action.payload;
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -212,5 +217,7 @@ const authSlice = createSlice({
       });
   }
 });
+
+export const { updateUserImage } = authSlice.actions;
 
 export default authSlice.reducer;
