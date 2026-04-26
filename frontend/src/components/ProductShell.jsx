@@ -1,61 +1,85 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import {
   BarChart3,
-  BookOpen,
-  Braces,
+  CheckCircle2,
   Code2,
-  Github,
   LayoutDashboard,
   LogOut,
   Menu,
   Moon,
-  Sparkles,
-  Trophy,
+  Search,
+  ShieldAlert,
   UserRound,
   X,
 } from 'lucide-react';
 import { logoutUser } from '../authSlice';
+import { cx, formatDifficulty, getDifficultyStyle, getStatusStyle, ui } from '../utils/uiHelpers';
 
 const navItems = [
-  { label: 'Problems', to: '/problems', icon: Braces },
-  { label: 'Contests', to: '/contests', icon: Trophy },
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Resources', to: '/resources', icon: BookOpen },
+  { label: 'Problems', to: '/problems', icon: Search, match: (pathname) => pathname === '/' || pathname.startsWith('/problem') || pathname.startsWith('/problems') },
+  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, match: (pathname) => pathname.startsWith('/dashboard') || pathname.startsWith('/profile') },
 ];
 
 export function BrandLogo() {
   return (
-    <NavLink to="/" className="group flex items-center gap-3">
-      <div className="relative grid h-11 w-11 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-400/10 shadow-[0_0_32px_rgba(34,211,238,0.22)]">
-        <Code2 className="h-5 w-5 text-cyan-200" />
-        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.9)]" />
+    <NavLink to="/problems" className="group flex items-center gap-3" aria-label="LeecoAI problems">
+      <div className="grid h-10 w-10 place-items-center rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-300 transition group-hover:border-blue-400/40 group-hover:bg-blue-500/15">
+        <Code2 className="h-5 w-5" />
       </div>
-      <div>
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-white">LeecoAI</p>
-        <p className="text-xs font-medium text-slate-400">Code. Rank. Get hired.</p>
+      <div className="leading-none">
+        <p className="text-sm font-semibold text-slate-50">LeecoAI</p>
+        <p className="mt-1 text-xs font-medium text-slate-500">Coding Platform</p>
       </div>
     </NavLink>
   );
 }
 
-function UserAvatar({ user }) {
+function UserAvatar({ user, size = 'sm' }) {
+  const dimensions = size === 'lg' ? 'h-14 w-14 text-xl' : 'h-9 w-9 text-sm';
+
   if (user?.profileImage) {
-    return <img src={user.profileImage} alt={user.firstName || 'Profile'} className="h-9 w-9 rounded-full object-cover ring-2 ring-white/10" />;
+    return (
+      <img
+        src={user.profileImage}
+        alt={user.firstName || 'Profile'}
+        className={cx(dimensions, 'rounded-lg object-cover ring-1 ring-slate-700')}
+      />
+    );
   }
 
   return (
-    <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 text-sm font-bold text-white ring-2 ring-white/10">
-      {(user?.firstName || 'U').charAt(0).toUpperCase()}
+    <div className={cx(dimensions, 'grid place-items-center rounded-lg bg-blue-500/15 font-semibold text-blue-200 ring-1 ring-blue-400/20')}>
+      {(user?.firstName || user?.username || 'U').charAt(0).toUpperCase()}
     </div>
+  );
+}
+
+function NavItem({ item, pathname, onClick }) {
+  const active = item.match(pathname);
+  const Icon = item.icon;
+
+  return (
+    <NavLink
+      to={item.to}
+      onClick={onClick}
+      className={cx(
+        'inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition',
+        active ? 'bg-slate-800 text-slate-50' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {item.label}
+    </NavLink>
   );
 }
 
 export function ProductNavbar() {
   const [open, setOpen] = useState(false);
   const dispatch = useDispatch();
+  const { pathname } = useLocation();
   const { user } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
@@ -64,48 +88,41 @@ export function ProductNavbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/78 backdrop-blur-2xl">
-      <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-slate-800/90 bg-slate-950/86 backdrop-blur-xl">
+      <nav className={cx(ui.layout.navbarHeight, 'mx-auto flex max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8')}>
         <BrandLogo />
 
-        <div className="hidden items-center gap-1 lg:flex">
-          {navItems.map(({ label, to, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  isActive
-                    ? 'bg-white/10 text-white shadow-inner shadow-white/5'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`
-              }
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </NavLink>
+        <div className="hidden items-center gap-1 md:flex">
+          {navItems.map((item) => (
+            <NavItem key={item.to} item={item} pathname={pathname} />
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-2 md:flex">
           {user?.role === 'admin' && (
-            <NavLink to="/admin" className="rounded-full border border-violet-300/20 bg-violet-400/10 px-4 py-2 text-sm font-bold text-violet-100 transition hover:bg-violet-400/20">
+            <NavLink
+              to="/admin"
+              className="flex h-10 items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 text-sm font-bold text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20"
+            >
               Admin
             </NavLink>
           )}
-          <button className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:border-cyan-300/40 hover:text-white" aria-label="Dark mode">
+          <button className={ui.button.icon} aria-label="Toggle dark mode">
             <Moon className="h-4 w-4" />
           </button>
-          <NavLink to="/profile" className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 py-1 pl-1 pr-4 text-sm font-semibold text-white transition hover:bg-white/10">
+          <NavLink
+            to="/dashboard"
+            className="flex h-10 items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-2 pr-3 text-sm font-semibold text-slate-100 transition hover:border-slate-700 hover:bg-slate-800"
+          >
             <UserAvatar user={user} />
-            <span>{user?.firstName || 'Profile'}</span>
+            <span className="max-w-28 truncate">{user?.firstName || user?.username || 'Profile'}</span>
           </NavLink>
-          <button onClick={handleLogout} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:border-red-300/40 hover:text-red-200" aria-label="Logout">
+          <button onClick={handleLogout} className={ui.button.icon} aria-label="Logout">
             <LogOut className="h-4 w-4" />
           </button>
         </div>
 
-        <button className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-white lg:hidden" onClick={() => setOpen(!open)} aria-label="Open menu">
+        <button className={cx(ui.button.icon, 'md:hidden')} onClick={() => setOpen((value) => !value)} aria-label="Open navigation">
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </nav>
@@ -114,25 +131,35 @@ export function ProductNavbar() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="border-t border-white/10 bg-slate-950/96 px-4 py-4 lg:hidden"
+          exit={{ opacity: 0, y: -8 }}
+          className="border-t border-slate-800 bg-slate-950/96 px-4 py-3 md:hidden"
         >
-          <div className="space-y-2">
-            {navItems.map(({ label, to, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white"
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </NavLink>
+          <div className="mx-auto max-w-[1440px] space-y-1">
+            {navItems.map((item) => (
+              <NavItem key={item.to} item={item} pathname={pathname} onClick={() => setOpen(false)} />
             ))}
-            <NavLink to="/profile" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white">
+            {user?.role === 'admin' && (
+              <NavLink
+                to="/admin"
+                onClick={() => setOpen(false)}
+                className="flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                Admin Panel
+              </NavLink>
+            )}
+            <NavLink
+              to="/dashboard"
+              onClick={() => setOpen(false)}
+              className="flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-400 hover:bg-slate-800/70 hover:text-slate-100"
+            >
               <UserRound className="h-4 w-4" />
               Profile
             </NavLink>
-            <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-red-200 hover:bg-red-500/10">
+            <button
+              onClick={handleLogout}
+              className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold text-red-300 hover:bg-red-500/10"
+            >
               <LogOut className="h-4 w-4" />
               Logout
             </button>
@@ -145,29 +172,20 @@ export function ProductNavbar() {
 
 export function ProductFooter() {
   return (
-    <footer className="border-t border-white/10 bg-slate-950/80 px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-center md:justify-between">
-        <BrandLogo />
-        <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-400">
-          <NavLink to="/problems" className="hover:text-white">Problems</NavLink>
-          <NavLink to="/contests" className="hover:text-white">Contests</NavLink>
-          <NavLink to="/resources" className="hover:text-white">Resources</NavLink>
-          <a href="mailto:contact@leecoai.dev" className="hover:text-white">Contact</a>
-          <a href="https://github.com" className="inline-flex items-center gap-2 hover:text-white">
-            <Github className="h-4 w-4" />
-            GitHub
-          </a>
-        </div>
+    <footer className="border-t border-slate-800/90 bg-slate-950 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between text-xs font-medium text-slate-500">
+        <span>LeecoAI</span>
+        <span>Focused coding practice workspace</span>
       </div>
     </footer>
   );
 }
 
-export function ProductShell({ children, footer = true }) {
+export function ProductShell({ children, footer = false }) {
   return (
-    <div className="min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_85%_0%,rgba(139,92,246,0.20),transparent_32%),linear-gradient(180deg,#020617_0%,#08111f_45%,#020617_100%)]" />
-      <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.18] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:64px_64px]" />
+    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+      <div className="fixed inset-0 -z-10 bg-[linear-gradient(180deg,#020617_0%,#07111f_48%,#020617_100%)]" />
+      <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.14] [background-image:linear-gradient(rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:48px_48px]" />
       <ProductNavbar />
       {children}
       {footer && <ProductFooter />}
@@ -175,49 +193,112 @@ export function ProductShell({ children, footer = true }) {
   );
 }
 
-export function GlassCard({ children, className = '' }) {
+export function GlassCard({ children, className = '', animate = true }) {
+  const Component = animate ? motion.div : 'div';
+  const motionProps = animate
+    ? {
+        initial: { opacity: 0, y: 10 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, margin: '-24px' },
+        transition: { duration: 0.25, ease: 'easeOut' },
+      }
+    : {};
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.45, ease: 'easeOut' }}
-      className={`group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl ${className}`}
-    >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-80" />
-      <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl transition duration-500 group-hover:bg-violet-400/15" />
+    <Component {...motionProps} className={cx(ui.card, className)}>
       {children}
-    </motion.div>
+    </Component>
   );
 }
 
-export function SectionHeader({ eyebrow, title, description }) {
+export function SectionHeader({ eyebrow, title, description, action, className = '' }) {
   return (
-    <div className="mx-auto mb-10 max-w-3xl text-center">
-      {eyebrow && (
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan-100">
-          <Sparkles className="h-3.5 w-3.5" />
-          {eyebrow}
-        </div>
-      )}
-      <h2 className="text-3xl font-black tracking-normal text-white sm:text-4xl">{title}</h2>
-      {description && <p className="mt-4 text-base leading-7 text-slate-400">{description}</p>}
+    <div className={cx('mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between', className)}>
+      <div>
+        {eyebrow && <p className={ui.typography.overline}>{eyebrow}</p>}
+        {title && <h2 className={cx(ui.typography.h2, eyebrow && 'mt-2')}>{title}</h2>}
+        {description && <p className={cx(ui.typography.body, 'mt-2 max-w-2xl')}>{description}</p>}
+      </div>
+      {action}
     </div>
   );
 }
 
-export function StatPill({ icon: Icon = BarChart3, label, value }) {
+export function PageHeader({ eyebrow, title, description, action }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+    <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        {eyebrow && <p className={ui.typography.overline}>{eyebrow}</p>}
+        <h1 className={cx(ui.typography.h1, eyebrow && 'mt-2')}>{title}</h1>
+        {description && <p className={cx(ui.typography.body, 'mt-2 max-w-3xl')}>{description}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export function Button({ children, variant = 'primary', className = '', ...props }) {
+  return (
+    <button className={cx(ui.button[variant] || ui.button.primary, className)} {...props}>
+      {children}
+    </button>
+  );
+}
+
+export function IconButton({ children, className = '', ...props }) {
+  return (
+    <button className={cx(ui.button.icon, className)} {...props}>
+      {children}
+    </button>
+  );
+}
+
+export function DifficultyBadge({ difficulty, className = '' }) {
+  return (
+    <span className={cx('inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-semibold', getDifficultyStyle(difficulty), className)}>
+      {formatDifficulty(difficulty)}
+    </span>
+  );
+}
+
+export function StatusBadge({ status, children, className = '' }) {
+  return (
+    <span className={cx('inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold capitalize', getStatusStyle(status), className)}>
+      {children || status}
+    </span>
+  );
+}
+
+export function StatPill({ icon: Icon = BarChart3, label, value, detail }) {
+  return (
+    <div className={cx(ui.card, 'p-4')}>
       <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-400/10 text-cyan-200">
+        <div className="grid h-10 w-10 place-items-center rounded-lg bg-blue-500/10 text-blue-300">
           <Icon className="h-5 w-5" />
         </div>
-        <div>
-          <p className="text-xl font-black text-white">{value}</p>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+        <div className="min-w-0">
+          <p className="truncate text-xl font-semibold text-slate-50">{value}</p>
+          <p className={ui.typography.caption}>{label}</p>
+          {detail && <p className="mt-0.5 text-xs text-slate-500">{detail}</p>}
         </div>
       </div>
+    </div>
+  );
+}
+
+export function SkeletonBlock({ className = '' }) {
+  return <div className={cx(ui.skeleton, className)} />;
+}
+
+export function EmptyState({ icon: Icon = CheckCircle2, title, description, action }) {
+  return (
+    <div className="rounded-lg border border-dashed border-slate-800 bg-slate-900/44 px-6 py-10 text-center">
+      <div className="mx-auto grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-slate-400">
+        <Icon className="h-5 w-5" />
+      </div>
+      <p className="mt-4 text-sm font-semibold text-slate-100">{title}</p>
+      {description && <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-slate-500">{description}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }

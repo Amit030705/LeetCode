@@ -1,377 +1,387 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import {
-  ArrowRight,
-  BarChart3,
+  ArrowDownUp,
   BookOpen,
-  Building2,
   CheckCircle2,
-  Clock3,
+  Circle,
+  Filter,
   Flame,
-  GraduationCap,
-  LineChart,
-  Medal,
+  Loader2,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   Target,
-  TrendingUp,
   Trophy,
-  Users,
-  Zap,
 } from 'lucide-react';
 import axiosClient from '../utils/axiosClient';
-import { GlassCard, ProductShell, SectionHeader, StatPill } from '../components/ProductShell';
-import { formatDifficulty, getDifficultyDotStyle, getDifficultyStyle, getProblemTag } from '../utils/uiHelpers';
+import {
+  Button,
+  DifficultyBadge,
+  EmptyState,
+  GlassCard,
+  PageHeader,
+  ProductShell,
+  SkeletonBlock,
+  StatPill,
+} from '../components/ProductShell';
+import {
+  cx,
+  difficultyOrder,
+  formatNumber,
+  formatTag,
+  getAcceptanceRate,
+  getPopularityScore,
+  getProblemTag,
+  getProblemTags,
+  ui,
+} from '../utils/uiHelpers';
 
-const features = [
-  { icon: Target, title: 'Interview-grade problem paths', text: 'Curated DSA tracks by topic, company pattern, and difficulty progression.' },
-  { icon: Zap, title: 'Fast execution workflow', text: 'Run, submit, inspect results, and learn from editorial content without context switching.' },
-  { icon: ShieldCheck, title: 'Real progress intelligence', text: 'Track accuracy, streaks, solved count, and recommended next problems.' },
+const defaultFilters = {
+  query: '',
+  difficulty: 'all',
+  topic: 'all',
+  status: 'all',
+  sort: 'popular',
+};
+
+const sortOptions = [
+  { value: 'popular', label: 'Popular' },
+  { value: 'acceptance', label: 'Acceptance' },
+  { value: 'newest', label: 'Newest' },
 ];
 
-const testimonials = [
-  { name: 'Aarav M.', role: 'SDE Intern', quote: 'The dashboard made my daily placement prep feel focused and measurable.' },
-  { name: 'Nisha R.', role: 'Backend Engineer', quote: 'The coding workspace feels polished enough to use for serious contest practice.' },
-  { name: 'Rahul K.', role: 'Final Year Student', quote: 'Topic filters and recommendations helped me stop randomly solving problems.' },
-];
+const pageSize = 10;
 
-function SkeletonRows() {
+function SelectField({ icon: Icon, label, value, onChange, options }) {
   return (
-    <div className="space-y-3">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />
+    <label className="min-w-0">
+      <span className="sr-only">{label}</span>
+      <div className="relative">
+        {Icon && <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />}
+        <select value={value} onChange={onChange} className={cx(ui.select, Icon && 'pl-9', 'w-full min-w-[148px]')}>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </label>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 7 }).map((_, index) => (
+        <tr key={index}>
+          <td colSpan="6" className="py-2">
+            <SkeletonBlock className="h-14 w-full" />
+          </td>
+        </tr>
       ))}
-    </div>
+    </>
+  );
+}
+
+function StatusIcon({ solved }) {
+  return solved ? (
+    <CheckCircle2 className="h-5 w-5 text-emerald-300" aria-label="Solved" />
+  ) : (
+    <Circle className="h-5 w-5 text-slate-600" aria-label="Unsolved" />
   );
 }
 
 function Homepage() {
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const [problems, setProblems] = useState([]);
   const [solvedProblems, setSolvedProblems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    difficulty: 'all',
-    tag: 'all',
-    status: 'all',
-    query: '',
-    sort: 'default',
-  });
+  const [filters, setFilters] = useState(defaultFilters);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchProblems = async () => {
       setLoading(true);
       try {
         const [problemResponse, solvedResponse] = await Promise.all([
           axiosClient.get('/problem/getAllProblem'),
           axiosClient.get('/problem/problemSolvedByUser').catch(() => ({ data: [] })),
         ]);
-        setProblems(problemResponse.data || []);
-        setSolvedProblems(solvedResponse.data || []);
+        setProblems(Array.isArray(problemResponse.data) ? problemResponse.data : []);
+        setSolvedProblems(Array.isArray(solvedResponse.data) ? solvedResponse.data : []);
       } catch (error) {
-        console.error('Error fetching platform data:', error);
+        toast.error(error?.response?.data?.message || 'Could not load problems');
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchData();
-    }
+    if (user) fetchProblems();
   }, [user]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
   const solvedIds = useMemo(() => new Set(solvedProblems.map((problem) => problem._id)), [solvedProblems]);
-  const tags = useMemo(() => [...new Set(problems.map(getProblemTag).filter(Boolean))], [problems]);
+
+  const topics = useMemo(() => {
+    const values = problems.flatMap((problem) => getProblemTags(problem));
+    return [...new Set(values)].filter(Boolean).sort((a, b) => formatTag(a).localeCompare(formatTag(b)));
+  }, [problems]);
+
+  const enrichedProblems = useMemo(
+    () =>
+      problems.map((problem, index) => ({
+        ...problem,
+        acceptance: getAcceptanceRate(problem, index),
+        popularity: getPopularityScore(problem, index),
+        primaryTag: getProblemTag(problem),
+        tagList: getProblemTags(problem),
+        originalIndex: index,
+      })),
+    [problems],
+  );
 
   const filteredProblems = useMemo(() => {
-    const normalizedQuery = filters.query.trim().toLowerCase();
-
-    const rows = problems.filter((problem) => {
-      const tag = getProblemTag(problem);
+    const query = filters.query.trim().toLowerCase();
+    const rows = enrichedProblems.filter((problem) => {
       const difficultyMatch = filters.difficulty === 'all' || problem.difficulty === filters.difficulty;
-      const tagMatch = filters.tag === 'all' || tag === filters.tag;
-      const statusMatch =
-        filters.status === 'all' ||
-        (filters.status === 'solved' ? solvedIds.has(problem._id) : !solvedIds.has(problem._id));
-      const queryMatch =
-        !normalizedQuery ||
-        problem.title?.toLowerCase().includes(normalizedQuery) ||
-        tag?.toLowerCase().includes(normalizedQuery);
+      const topicMatch = filters.topic === 'all' || problem.tagList.includes(filters.topic);
+      const solved = solvedIds.has(problem._id);
+      const statusMatch = filters.status === 'all' || (filters.status === 'solved' ? solved : !solved);
+      const searchMatch =
+        !query ||
+        problem.title?.toLowerCase().includes(query) ||
+        problem.tagList.some((tag) => formatTag(tag).toLowerCase().includes(query));
 
-      return difficultyMatch && tagMatch && statusMatch && queryMatch;
+      return difficultyMatch && topicMatch && statusMatch && searchMatch;
     });
 
-    if (filters.sort === 'difficulty') {
-      const order = { easy: 1, medium: 2, hard: 3 };
-      return [...rows].sort((a, b) => (order[a.difficulty] || 9) - (order[b.difficulty] || 9));
-    }
+    return [...rows].sort((a, b) => {
+      if (filters.sort === 'acceptance') return b.acceptance - a.acceptance;
+      if (filters.sort === 'newest') return b.originalIndex - a.originalIndex;
+      if (filters.sort === 'popular') return b.popularity - a.popularity;
+      return (difficultyOrder[a.difficulty] || 9) - (difficultyOrder[b.difficulty] || 9);
+    });
+  }, [enrichedProblems, filters, solvedIds]);
 
-    if (filters.sort === 'title') {
-      return [...rows].sort((a, b) => a.title.localeCompare(b.title));
-    }
-
-    return rows;
-  }, [filters, problems, solvedIds]);
-
+  const visibleProblems = filteredProblems.slice(0, page * pageSize);
+  const hasMore = visibleProblems.length < filteredProblems.length;
   const solvedCount = solvedProblems.length;
-  const totalProblems = problems.length || 1;
-  const accuracy = Math.min(96, Math.max(62, Math.round((solvedCount / totalProblems) * 100) || 78));
+  const totalCount = problems.length;
+  const easySolved = solvedProblems.filter((problem) => problem.difficulty === 'easy').length;
+  const mediumSolved = solvedProblems.filter((problem) => problem.difficulty === 'medium').length;
+  const hardSolved = solvedProblems.filter((problem) => problem.difficulty === 'hard').length;
+  const acceptanceRate = totalCount ? Math.round((solvedCount / totalCount) * 100) : 0;
+
+  const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
 
   return (
     <ProductShell>
-      <main>
-        <section className="relative px-4 pb-16 pt-14 sm:px-6 lg:px-8 lg:pb-24 lg:pt-20">
-          <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1fr_0.92fr]">
-            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-bold text-cyan-100">
-                <Sparkles className="h-4 w-4" />
-                Placement prep, redesigned for momentum
-              </div>
-              <h1 className="max-w-4xl text-5xl font-black leading-[1.02] tracking-normal text-white sm:text-6xl lg:text-7xl">
-                Master Coding Interviews & Crack Placements
-              </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-                Practice curated problems, run code in a premium editor, monitor progress, and build the habits that turn interview prep into offers.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <NavLink to="/problems" className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-cyan-300 px-6 text-sm font-black text-slate-950 shadow-[0_18px_40px_rgba(34,211,238,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-200">
-                  Start Practicing
-                  <ArrowRight className="h-4 w-4" />
-                </NavLink>
-                <NavLink to="/dashboard" className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/5 px-6 text-sm font-bold text-white transition hover:border-white/20 hover:bg-white/10">
-                  Explore Problems
-                </NavLink>
-              </div>
-            </motion.div>
+      <main className={cx(ui.layout.page, ui.layout.section)}>
+        <PageHeader
+          eyebrow="Questions"
+          title="Problem Set"
+          description="A focused LeetCode-style workspace for searching, filtering, sorting, and opening coding questions fast."
+          action={
+            <Button variant="secondary" onClick={() => setFilters(defaultFilters)}>
+              <SlidersHorizontal className="h-4 w-4" />
+              Reset
+            </Button>
+          }
+        />
 
-            <GlassCard className="p-4 sm:p-5">
-              <div className="rounded-[20px] border border-white/10 bg-slate-950/80 p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-white">Live Dashboard</p>
-                    <p className="text-xs text-slate-500">Today&apos;s coding pulse</p>
-                  </div>
-                  <div className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">Online</div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <StatPill icon={CheckCircle2} value={solvedCount || 128} label="Solved" />
-                  <StatPill icon={Flame} value="12 days" label="Streak" />
-                  <StatPill icon={Trophy} value="#2,418" label="Rank" />
-                  <StatPill icon={BarChart3} value={`${accuracy}%`} label="Accuracy" />
-                </div>
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <div className="mb-3 flex items-center justify-between text-sm">
-                    <span className="font-bold text-white">Weekly Progress</span>
-                    <span className="text-cyan-200">+18%</span>
-                  </div>
-                  <div className="flex h-28 items-end gap-2">
-                    {[38, 62, 46, 76, 58, 88, 72].map((height, index) => (
-                      <div key={index} className="flex-1 rounded-t-xl bg-gradient-to-t from-violet-500 to-cyan-300" style={{ height: `${height}%` }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </GlassCard>
-          </div>
-        </section>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatPill icon={Target} value={`${formatNumber(solvedCount)}/${formatNumber(totalCount)}`} label="Problems solved" detail={`${acceptanceRate}% completion`} />
+          <StatPill icon={CheckCircle2} value={`${easySolved}/${mediumSolved}/${hardSolved}`} label="Easy / Medium / Hard" />
+          <StatPill icon={Flame} value="12 days" label="Current streak" />
+          <StatPill icon={Trophy} value="#2,418" label="Global ranking" />
+        </div>
 
-        <section id="dashboard" className="px-4 py-10 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm font-bold uppercase tracking-[0.18em] text-cyan-200">Dashboard</p>
-                <h2 className="mt-2 text-3xl font-black text-white">Welcome back, {user?.firstName || 'coder'}</h2>
-              </div>
-              <p className="max-w-xl text-sm leading-6 text-slate-400">Your workspace is tuned for daily practice, placement prep, and contest readiness.</p>
-            </div>
+        <GlassCard animate={false} className="sticky top-[4.5rem] z-30 mt-5 p-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_auto_auto_auto_auto]">
+            <label className="relative block">
+              <span className="sr-only">Search questions</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                value={filters.query}
+                onChange={(event) => updateFilter('query', event.target.value)}
+                placeholder="Search by title or topic"
+                className={cx(ui.input, 'pl-9')}
+              />
+            </label>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatPill icon={CheckCircle2} value={solvedCount} label="Problems Solved" />
-              <StatPill icon={Flame} value="12" label="Daily Streak" />
-              <StatPill icon={Medal} value="#2,418" label="Ranking" />
-              <StatPill icon={TrendingUp} value={`${accuracy}%`} label="Accuracy" />
-            </div>
-
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <GlassCard className="p-6">
-                <div className="mb-5 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-white">Recommended Problems</h3>
-                  <NavLink to="/problems" className="text-sm font-bold text-cyan-200 hover:text-cyan-100">View all</NavLink>
-                </div>
-                <div className="space-y-3">
-                  {loading ? <SkeletonRows /> : filteredProblems.slice(0, 4).map((problem) => (
-                    <NavLink key={problem._id} to={`/problem/${problem._id}`} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-cyan-300/30 hover:bg-white/[0.07]">
-                      <div className="flex items-center gap-3">
-                        <span className={`h-2.5 w-2.5 rounded-full ${getDifficultyDotStyle(problem.difficulty)}`} />
-                        <div>
-                          <p className="font-bold text-white">{problem.title}</p>
-                          <p className="text-sm text-slate-500">{getProblemTag(problem)} · 68% acceptance</p>
-                        </div>
-                      </div>
-                      <span className={`rounded-full border px-3 py-1 text-xs font-black ${getDifficultyStyle(problem.difficulty)}`}>{formatDifficulty(problem.difficulty)}</span>
-                    </NavLink>
-                  ))}
-                </div>
-              </GlassCard>
-
-              <GlassCard className="p-6">
-                <h3 className="text-lg font-black text-white">Recent Activity</h3>
-                <div className="mt-5 space-y-4">
-                  {['Solved Array Sprint', 'Submitted DP Challenge', 'Watched Editorial', 'Joined Weekly Contest'].map((activity, index) => (
-                    <div key={activity} className="flex gap-3">
-                      <div className="mt-1 grid h-8 w-8 place-items-center rounded-full bg-white/5 text-cyan-200">
-                        <Clock3 className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">{activity}</p>
-                        <p className="text-sm text-slate-500">{index + 1}h ago</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </GlassCard>
-            </div>
-          </div>
-        </section>
-
-        <section id="problems" className="px-4 py-14 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <SectionHeader
-              eyebrow="Problem Library"
-              title="A serious workspace for serious practice"
-              description="Search, filter, sort, and continue exactly where your preparation needs the most leverage."
+            <SelectField
+              icon={Filter}
+              label="Difficulty"
+              value={filters.difficulty}
+              onChange={(event) => updateFilter('difficulty', event.target.value)}
+              options={[
+                { value: 'all', label: 'All Difficulty' },
+                { value: 'easy', label: 'Easy' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'hard', label: 'Hard' },
+              ]}
             />
 
-            <GlassCard className="p-4 sm:p-6">
-              <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-                  <input
-                    value={filters.query}
-                    onChange={(event) => setFilters({ ...filters, query: event.target.value })}
-                    placeholder="Search problems, tags, topics..."
-                    className="h-12 w-full rounded-2xl border border-white/10 bg-slate-950/70 pl-12 pr-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/40 focus:ring-4 focus:ring-cyan-300/10"
-                  />
-                </div>
-                {[
-                  ['status', [['all', 'All Status'], ['solved', 'Solved'], ['unsolved', 'Unsolved']]],
-                  ['difficulty', [['all', 'All Difficulty'], ['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']]],
-                  ['tag', [['all', 'All Topics'], ...tags.map((tag) => [tag, tag])]],
-                ].map(([key, options]) => (
-                  <select
-                    key={key}
-                    value={filters[key]}
-                    onChange={(event) => setFilters({ ...filters, [key]: event.target.value })}
-                    className="h-12 rounded-2xl border border-white/10 bg-slate-950/70 px-4 text-sm font-bold text-white outline-none focus:border-cyan-300/40"
-                  >
-                    {options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                ))}
-                <select
-                  value={filters.sort}
-                  onChange={(event) => setFilters({ ...filters, sort: event.target.value })}
-                  className="h-12 rounded-2xl border border-white/10 bg-slate-950/70 px-4 text-sm font-bold text-white outline-none focus:border-cyan-300/40"
-                >
-                  <option value="default">Recommended</option>
-                  <option value="title">Title</option>
-                  <option value="difficulty">Difficulty</option>
-                </select>
-              </div>
+            <SelectField
+              icon={BookOpen}
+              label="Topic"
+              value={filters.topic}
+              onChange={(event) => updateFilter('topic', event.target.value)}
+              options={[{ value: 'all', label: 'All Topics' }, ...topics.map((topic) => ({ value: topic, label: formatTag(topic) }))]}
+            />
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] border-separate border-spacing-y-3">
-                  <thead>
-                    <tr className="text-left text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-                      <th className="px-4">Status</th>
-                      <th className="px-4">Title</th>
-                      <th className="px-4">Acceptance</th>
-                      <th className="px-4">Difficulty</th>
-                      <th className="px-4">Tags</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan="5"><SkeletonRows /></td></tr>
-                    ) : filteredProblems.length ? filteredProblems.map((problem) => {
-                      const solved = solvedIds.has(problem._id);
-                      return (
-                        <tr key={problem._id} className="group">
-                          <td className="rounded-l-2xl border-y border-l border-white/10 bg-white/[0.035] px-4 py-4">
-                            <CheckCircle2 className={`h-5 w-5 ${solved ? 'text-emerald-300' : 'text-slate-600'}`} />
-                          </td>
-                          <td className="border-y border-white/10 bg-white/[0.035] px-4 py-4">
-                            <NavLink to={`/problem/${problem._id}`} className="font-black text-white transition group-hover:text-cyan-200">{problem.title}</NavLink>
-                          </td>
-                          <td className="border-y border-white/10 bg-white/[0.035] px-4 py-4 text-sm font-bold text-slate-400">{65 + (problem.title?.length || 0) % 25}%</td>
-                          <td className="border-y border-white/10 bg-white/[0.035] px-4 py-4">
-                            <span className={`rounded-full border px-3 py-1 text-xs font-black ${getDifficultyStyle(problem.difficulty)}`}>{formatDifficulty(problem.difficulty)}</span>
-                          </td>
-                          <td className="rounded-r-2xl border-y border-r border-white/10 bg-white/[0.035] px-4 py-4">
-                            <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-slate-300">
-                              <SlidersHorizontal className="h-3.5 w-3.5" />
-                              {getProblemTag(problem)}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    }) : (
-                      <tr>
-                        <td colSpan="5" className="rounded-2xl border border-white/10 bg-white/[0.035] px-6 py-12 text-center">
-                          <BookOpen className="mx-auto h-10 w-10 text-slate-600" />
-                          <p className="mt-3 font-bold text-white">No matching problems</p>
-                          <p className="mt-1 text-sm text-slate-500">Try changing filters or search terms.</p>
+            <SelectField
+              icon={CheckCircle2}
+              label="Status"
+              value={filters.status}
+              onChange={(event) => updateFilter('status', event.target.value)}
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'solved', label: 'Solved' },
+                { value: 'unsolved', label: 'Unsolved' },
+              ]}
+            />
+
+            <SelectField
+              icon={ArrowDownUp}
+              label="Sort"
+              value={filters.sort}
+              onChange={(event) => updateFilter('sort', event.target.value)}
+              options={sortOptions}
+            />
+          </div>
+        </GlassCard>
+
+        <GlassCard animate={false} className="mt-5 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-100">Questions</p>
+              <p className={ui.typography.caption}>
+                Showing {formatNumber(visibleProblems.length)} of {formatNumber(filteredProblems.length)}
+              </p>
+            </div>
+            {loading && (
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Syncing
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[920px] border-collapse">
+              <thead className="bg-slate-950/60">
+                <tr className="text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <th className="w-16 px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Title</th>
+                  <th className="px-4 py-3">Difficulty</th>
+                  <th className="px-4 py-3">Acceptance</th>
+                  <th className="px-4 py-3">Tags</th>
+                  <th className="px-4 py-3">Frequency</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/80">
+                {loading ? (
+                  <TableSkeleton />
+                ) : visibleProblems.length ? (
+                  visibleProblems.map((problem, index) => {
+                    const solved = solvedIds.has(problem._id);
+                    return (
+                      <motion.tr
+                        key={problem._id}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.18, delay: Math.min(index * 0.015, 0.12) }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigate(`/problem/${problem._id}`)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') navigate(`/problem/${problem._id}`);
+                        }}
+                        className="group cursor-pointer bg-slate-900/28 outline-none transition hover:bg-blue-500/[0.06] focus:bg-blue-500/[0.08]"
+                      >
+                        <td className="px-4 py-4">
+                          <StatusIcon solved={solved} />
                         </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </GlassCard>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className={cx('h-2 w-2 rounded-full', solved ? 'bg-emerald-400' : 'bg-slate-600')} />
+                            <div>
+                              <p className="font-semibold text-slate-100 transition group-hover:text-blue-200">{problem.title}</p>
+                              <p className="mt-0.5 text-xs text-slate-500">#{String(problem.originalIndex + 1).padStart(3, '0')} - {formatTag(problem.primaryTag)}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <DifficultyBadge difficulty={problem.difficulty} />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="w-10 text-sm font-semibold text-slate-200">{problem.acceptance}%</span>
+                            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-800">
+                              <div className="h-full rounded-full bg-blue-400" style={{ width: `${problem.acceptance}%` }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex flex-wrap gap-1.5">
+                            {problem.tagList.slice(0, 2).map((tag) => (
+                              <span key={tag} className="rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-xs font-medium text-slate-400">
+                                {formatTag(tag)}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-800">
+                              <div className="h-full rounded-full bg-slate-400" style={{ width: `${problem.popularity}%` }} />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-300">{problem.popularity}</span>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="p-6">
+                      <EmptyState
+                        icon={Search}
+                        title="No questions match these filters"
+                        description="Adjust difficulty, topic, status, or search text to find more problems."
+                        action={
+                          <Button variant="secondary" onClick={() => setFilters(defaultFilters)}>
+                            Clear filters
+                          </Button>
+                        }
+                      />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        </section>
 
-        <section className="px-4 py-14 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <SectionHeader eyebrow="Why LeecoAI" title="Built like a product, not a classroom assignment" />
-            <div className="grid gap-5 md:grid-cols-3">
-              {features.map(({ icon: Icon, title, text }) => (
-                <GlassCard key={title} className="p-6">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400/20 to-violet-500/20 text-cyan-100">
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-5 text-xl font-black text-white">{title}</h3>
-                  <p className="mt-3 leading-7 text-slate-400">{text}</p>
-                </GlassCard>
-              ))}
+          {!loading && filteredProblems.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-slate-800 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-500">
+                {hasMore ? 'Load the next page of questions without leaving the table.' : 'You are viewing every matching question.'}
+              </p>
+              <Button variant={hasMore ? 'secondary' : 'ghost'} disabled={!hasMore} onClick={() => setPage((current) => current + 1)}>
+                Load more
+              </Button>
             </div>
-          </div>
-        </section>
-
-        <section className="px-4 py-14 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <div className="grid gap-4 md:grid-cols-3">
-              <StatPill icon={Users} value="12k+" label="Active Users" />
-              <StatPill icon={GraduationCap} value={`${problems.length || 450}+`} label="Problems" />
-              <StatPill icon={Building2} value="80+" label="Companies" />
-            </div>
-            <div className="mt-8 grid gap-5 md:grid-cols-3">
-              {testimonials.map((item) => (
-                <GlassCard key={item.name} className="p-6">
-                  <LineChart className="h-6 w-6 text-cyan-200" />
-                  <p className="mt-5 text-lg font-semibold leading-8 text-white">&quot;{item.quote}&quot;</p>
-                  <div className="mt-5">
-                    <p className="font-black text-white">{item.name}</p>
-                    <p className="text-sm text-slate-500">{item.role}</p>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </div>
-        </section>
+          )}
+        </GlassCard>
       </main>
     </ProductShell>
   );

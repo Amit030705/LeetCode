@@ -18,10 +18,24 @@ const app = (
         toastOptions={{
           duration: 3600,
           style: {
-            borderRadius: '14px',
-            border: '1px solid #e2e8f0',
-            color: '#0f172a',
+            background: '#0f172a',
+            border: '1px solid #1e293b',
+            borderRadius: '8px',
+            color: '#f8fafc',
             fontWeight: 600,
+            boxShadow: '0 18px 60px rgba(0,0,0,0.28)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#34d399',
+              secondary: '#020617',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#f87171',
+              secondary: '#020617',
+            },
           },
         }}
       />

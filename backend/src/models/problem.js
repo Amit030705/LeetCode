@@ -17,7 +17,7 @@ const problemSchema = new Schema({
     },
     tags:{
         type:String,
-        enum:['array','linkedList','graph','dp'],
+        enum:['array','linkedList','graph','dp','math','greedy','backtracking','string','tree','heap','hashTable','twoPointers','bitManipulation','stack','queue','design','recursion','divideAndConquer','slidingWindow','unionFind','array,two-pointers','binary-search'],
         required:true
     },
     visibleTestCases:[
@@ -28,11 +28,9 @@ const problemSchema = new Schema({
             },
             output:{
                 type:String,
-                required:true,
             },
             explanation:{
                 type:String,
-                required:true
             }
         }
     ],
@@ -45,7 +43,6 @@ const problemSchema = new Schema({
             },
             output:{
                 type:String,
-                required:true,
             }
         }
     ],

@@ -1,63 +1,113 @@
-import {Routes, Route ,Navigate} from "react-router";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Contests from "./pages/Contests";
-import Profile from "./pages/Profile";
-import Resources from "./pages/Resources";
-import Homepage from "./pages/Homepage";
+import { useEffect } from 'react';
+import { Navigate, Route, Routes } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
-import { checkAuth } from "./authSlice";
-import { useEffect } from "react";
-import AdminPanel from "./components/AdminPanel";
-import ProblemPage from "./pages/ProblemPage"
-import Admin from "./pages/Admin";
-import AdminVideo from "./components/AdminVideo"
-import AdminDelete from "./components/AdminDelete"
-import AdminUpload from "./components/AdminUpload"
-import LeetCodeImport from "./components/LeetCodeImport"
+import { checkAuth } from './authSlice';
+import ForgotPassword from './pages/ForgotPassword';
+import Homepage from './pages/Homepage';
+import Login from './pages/Login';
+import ProblemPage from './pages/ProblemPage';
+import Profile from './pages/Profile';
+import ResetPassword from './pages/ResetPassword';
+import Signup from './pages/Signup';
+import AdminPanel from './pages/AdminPanel';
 
-function App(){
-  
+function RequireAuth({ children }) {
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+function PublicOnly({ children }) {
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  return isAuthenticated ? <Navigate to="/problems" replace /> : children;
+}
+
+function App() {
   const dispatch = useDispatch();
-  const {isAuthenticated,user,loading} = useSelector((state)=>state.auth);
+  const { loading } = useSelector((state) => state.auth);
 
-  // check initial authentication
   useEffect(() => {
     dispatch(checkAuth());
   }, [dispatch]);
-  
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">
-      <span className="loading loading-spinner loading-lg"></span>
-    </div>;
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-200">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-700 border-t-blue-400" />
+      </div>
+    );
   }
 
-  return(
-  <>
+  return (
     <Routes>
-      <Route path="/" element={isAuthenticated ?<Homepage></Homepage>:<Navigate to="/login" />}></Route>
-      <Route path="/dashboard" element={isAuthenticated ?<Homepage></Homepage>:<Navigate to="/login" />}></Route>
-      <Route path="/problems" element={isAuthenticated ?<Homepage></Homepage>:<Navigate to="/login" />}></Route>
-      <Route path="/contests" element={isAuthenticated ?<Contests />:<Navigate to="/login" />}></Route>
-      <Route path="/resources" element={isAuthenticated ?<Resources />:<Navigate to="/login" />}></Route>
-      <Route path="/profile" element={isAuthenticated ?<Profile />:<Navigate to="/login" />}></Route>
-      <Route path="/login" element={isAuthenticated?<Navigate to="/" />:<Login></Login>}></Route>
-      <Route path="/signup" element={isAuthenticated?<Navigate to="/" />:<Signup></Signup>}></Route>
-      <Route path="/forgot-password" element={isAuthenticated?<Navigate to="/" />:<ForgotPassword />}></Route>
-      <Route path="/reset-password/:token" element={isAuthenticated?<Navigate to="/" />:<ResetPassword />}></Route>
-      <Route path="/admin" element={isAuthenticated && user?.role === 'admin' ? <Admin /> : <Navigate to="/" />} />
-      <Route path="/admin/create" element={isAuthenticated && user?.role === 'admin' ? <AdminPanel /> : <Navigate to="/" />} />
-      <Route path="/admin/delete" element={isAuthenticated && user?.role === 'admin' ? <AdminDelete /> : <Navigate to="/" />} />
-      <Route path="/admin/video" element={isAuthenticated && user?.role === 'admin' ? <AdminVideo /> : <Navigate to="/" />} />
-      <Route path="/admin/upload/:problemId" element={isAuthenticated && user?.role === 'admin' ? <AdminUpload /> : <Navigate to="/" />} />
-      <Route path="/admin/import" element={isAuthenticated && user?.role === 'admin' ? <LeetCodeImport /> : <Navigate to="/" />} />
-      <Route path="/problem/:problemId" element={<ProblemPage/>}></Route>
-      
+      <Route path="/" element={<Navigate to="/problems" replace />} />
+      <Route
+        path="/problems"
+        element={
+          <RequireAuth>
+            <Homepage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/problem/:problemId"
+        element={
+          <RequireAuth>
+            <ProblemPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <Profile />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth>
+            <AdminPanel />
+          </RequireAuth>
+        }
+      />
+      <Route path="/profile" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="/login"
+        element={
+          <PublicOnly>
+            <Login />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <PublicOnly>
+            <Signup />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicOnly>
+            <ForgotPassword />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/reset-password/:token"
+        element={
+          <PublicOnly>
+            <ResetPassword />
+          </PublicOnly>
+        }
+      />
+      <Route path="*" element={<Navigate to="/problems" replace />} />
     </Routes>
-  </>
-  )
+  );
 }
 
 export default App;
