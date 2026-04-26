@@ -75,18 +75,21 @@ function PublicProfile() {
   const { userId } = useParams();
   const [profileData, setProfileData] = useState(null);
   const [activityData, setActivityData] = useState({});
+  const [rankData, setRankData] = useState({ rank: 0, totalUsers: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
       try {
-        const [profileResponse, activityResponse] = await Promise.all([
+        const [profileResponse, activityResponse, rankResponse] = await Promise.all([
           axiosClient.get(`/users/${userId}`),
           axiosClient.get(`/users/${userId}/activity`).catch(() => ({ data: {} })),
+          axiosClient.get(`/users/${userId}/ranking`).catch(() => ({ data: { rank: 0, totalUsers: 0 } })),
         ]);
         setProfileData(profileResponse.data);
         setActivityData(activityResponse.data || {});
+        setRankData(rankResponse.data || { rank: 0, totalUsers: 0 });
       } catch (error) {
         toast.error('Could not load profile');
       } finally {
@@ -110,12 +113,11 @@ function PublicProfile() {
     const submissions = solved ? solved * 3 + 14 : 0;
     const accepted = solved ? solved + Math.ceil(solved * 0.18) : 0;
     const acceptanceRate = submissions ? Math.min(96, Math.round((accepted / submissions) * 100)) : 0;
-    const rank = Math.max(1, 5000 - solved * 19);
 
     const { currentStreak, maxStreak } = calculateStreaks(activityData);
 
-    return { solved, total: totalProblems, easy, medium, hard, submissions, acceptanceRate, rank, currentStreak, maxStreak };
-  }, [profileData, activityData]);
+    return { solved, total: totalProblems, easy, medium, hard, submissions, acceptanceRate, rank: rankData.rank, totalUsers: rankData.totalUsers, currentStreak, maxStreak };
+  }, [profileData, activityData, rankData]);
 
   if (loading) {
     return (

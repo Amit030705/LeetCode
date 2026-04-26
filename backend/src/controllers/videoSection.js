@@ -150,4 +150,14 @@ const deleteVideo = async (req, res) => {
   }
 };
 
-module.exports = {generateUploadSignature,saveVideoMetadata,deleteVideo};
+const getAllVideos = async (req, res) => {
+  try {
+    const videos = await SolutionVideo.find({}).select('problemId secureUrl duration cloudinaryPublicId createdAt');
+    res.json(videos);
+  } catch (error) {
+    console.error('Error fetching all videos:', error);
+    res.status(500).json({ error: 'Failed to fetch videos' });
+  }
+};
+
+module.exports = {generateUploadSignature,saveVideoMetadata,deleteVideo,getAllVideos};

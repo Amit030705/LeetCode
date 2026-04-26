@@ -178,20 +178,23 @@ function Profile() {
   const [problems, setProblems] = useState([]);
   const [solvedProblems, setSolvedProblems] = useState([]);
   const [activityData, setActivityData] = useState({});
+  const [rankData, setRankData] = useState({ rank: 0, totalUsers: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const [problemResponse, solvedResponse, activityResponse] = await Promise.all([
+        const [problemResponse, solvedResponse, activityResponse, rankResponse] = await Promise.all([
           axiosClient.get('/problem/getAllProblem'),
           axiosClient.get('/problem/problemSolvedByUser').catch(() => ({ data: [] })),
           axiosClient.get(`/users/${user._id}/activity`).catch(() => ({ data: {} })),
+          axiosClient.get(`/users/${user._id}/ranking`).catch(() => ({ data: { rank: 0, totalUsers: 0 } })),
         ]);
         setProblems(Array.isArray(problemResponse.data) ? problemResponse.data : []);
         setSolvedProblems(Array.isArray(solvedResponse.data) ? solvedResponse.data : []);
         setActivityData(activityResponse.data || {});
+        setRankData(rankResponse.data || { rank: 0, totalUsers: 0 });
       } catch (error) {
         toast.error(error?.response?.data?.message || 'Could not load dashboard');
       } finally {
@@ -211,12 +214,11 @@ function Profile() {
     const submissions = solved ? solved * 3 + 14 : 0;
     const accepted = solved ? solved + Math.ceil(solved * 0.18) : 0;
     const acceptanceRate = submissions ? Math.min(96, Math.round((accepted / submissions) * 100)) : 0;
-    const rank = Math.max(1, 5000 - solved * 19);
 
     const { currentStreak, maxStreak } = calculateStreaks(activityData);
 
-    return { solved, total, easy, medium, hard, submissions, acceptanceRate, rank, currentStreak, maxStreak };
-  }, [problems, solvedProblems, activityData]);
+    return { solved, total, easy, medium, hard, submissions, acceptanceRate, rank: rankData.rank, totalUsers: rankData.totalUsers, currentStreak, maxStreak };
+  }, [problems, solvedProblems, activityData, rankData]);
 
   const recentSolved = solvedProblems.slice(-5).reverse();
   const recommendations = problems.filter((problem) => !solvedProblems.some((solved) => solved._id === problem._id)).slice(0, 5);

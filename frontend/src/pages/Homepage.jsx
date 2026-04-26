@@ -37,6 +37,7 @@ import {
   getProblemTag,
   getProblemTags,
   ui,
+  calculateStreaks,
 } from '../utils/uiHelpers';
 
 const defaultFilters = {
@@ -103,17 +104,23 @@ function Homepage() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState(defaultFilters);
   const [page, setPage] = useState(1);
+  const [activityData, setActivityData] = useState({});
+  const [rankData, setRankData] = useState({ rank: 0, totalUsers: 0 });
 
   useEffect(() => {
     const fetchProblems = async () => {
       setLoading(true);
       try {
-        const [problemResponse, solvedResponse] = await Promise.all([
+        const [problemResponse, solvedResponse, activityResponse, rankResponse] = await Promise.all([
           axiosClient.get('/problem/getAllProblem'),
           axiosClient.get('/problem/problemSolvedByUser').catch(() => ({ data: [] })),
+          axiosClient.get(`/users/${user._id}/activity`).catch(() => ({ data: {} })),
+          axiosClient.get(`/users/${user._id}/ranking`).catch(() => ({ data: { rank: 0, totalUsers: 0 } })),
         ]);
         setProblems(Array.isArray(problemResponse.data) ? problemResponse.data : []);
         setSolvedProblems(Array.isArray(solvedResponse.data) ? solvedResponse.data : []);
+        setActivityData(activityResponse.data || {});
+        setRankData(rankResponse.data || { rank: 0, totalUsers: 0 });
       } catch (error) {
         toast.error(error?.response?.data?.message || 'Could not load problems');
       } finally {
@@ -200,8 +207,8 @@ function Homepage() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatPill icon={Target} value={`${formatNumber(solvedCount)}/${formatNumber(totalCount)}`} label="Problems solved" detail={`${acceptanceRate}% completion`} />
           <StatPill icon={CheckCircle2} value={`${easySolved}/${mediumSolved}/${hardSolved}`} label="Easy / Medium / Hard" />
-          <StatPill icon={Flame} value="12 days" label="Current streak" />
-          <StatPill icon={Trophy} value="#2,418" label="Global ranking" />
+          <StatPill icon={Flame} value={`${calculateStreaks(activityData).currentStreak} days`} label="Current streak" />
+          <StatPill icon={Trophy} value={`#${formatNumber(rankData.rank)}`} label={`Global ranking (of ${formatNumber(rankData.totalUsers)})`} />
         </div>
 
         <GlassCard animate={false} className="sticky top-[4.5rem] z-30 mt-5 p-4">

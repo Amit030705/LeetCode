@@ -10,6 +10,7 @@ const submitRouter = require("./routes/submit")
 const aiRouter = require("./routes/aiChatting")
 const videoRouter = require("./routes/videoCreator");
 const userProfileRouter = require("./routes/userProfile");
+const discussionRouter = require("./routes/discussion");
 const cors = require('cors')
 
 // console.log("Hello")
@@ -35,8 +36,9 @@ app.use('/submission',submitRouter);
 app.use('/ai',aiRouter);
 app.use("/video",videoRouter);
 app.use("/users", userProfileRouter);
+app.use("/discussion", discussionRouter);
 
-console.log("Routes registered: /user, /problem, /submission, /ai, /video, /users");
+console.log("Routes registered: /user, /problem, /submission, /ai, /video, /users, /discussion");
 
 
 const InitalizeConnection = async ()=>{

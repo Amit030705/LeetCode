@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 import Editor from '@monaco-editor/react';
 import { NavLink, useParams } from 'react-router';
 import toast from 'react-hot-toast';
@@ -203,40 +204,165 @@ function ResultPanel({ runResult, submitResult, lastAction }) {
   );
 }
 
-function DiscussionTab() {
-  const threads = [
-    {
-      title: 'How should I think about edge cases?',
-      body: 'Start with empty input, one item, repeated values, already sorted data, and maximum constraints before optimizing.',
-      replies: 18,
-    },
-    {
-      title: 'What should I improve after getting accepted?',
-      body: 'Compare the accepted code with the editorial invariant, then remove duplicated branches and unnecessary state.',
-      replies: 11,
-    },
-    {
-      title: 'When should I switch data structures?',
-      body: 'If the slowest operation repeats in a loop, choose a structure that makes that exact operation cheaper.',
-      replies: 7,
-    },
-  ];
+function DiscussionTab({ problemId }) {
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newComment, setNewComment] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const { user } = useSelector((state) => state.auth);
+
+  const fetchComments = async () => {
+    try {
+      const res = await axiosClient.get(`/discussion/${problemId}`);
+      setComments(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchComments();
+  }, [problemId]);
+
+  const handlePost = async () => {
+    if (!newComment.trim()) return;
+    setPosting(true);
+    try {
+      const res = await axiosClient.post(`/discussion/${problemId}`, { content: newComment.trim() });
+      setComments((prev) => [res.data, ...prev]);
+      setNewComment('');
+      toast.success('Comment posted');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to post comment');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    setDeletingId(id);
+    try {
+      await axiosClient.delete(`/discussion/comment/${id}`);
+      setComments((prev) => prev.filter((c) => c._id !== id));
+      toast.success('Comment deleted');
+    } catch (err) {
+      toast.error('Failed to delete comment');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const formatTime = (dateStr) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 7) return `${diffDay}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   return (
-    <div className="space-y-3">
-      {threads.map((thread) => (
-        <div key={thread.title} className="rounded-lg border border-slate-800 bg-slate-950/46 p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-semibold text-slate-100">{thread.title}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{thread.body}</p>
+    <div className="space-y-5">
+      {/* Post new comment */}
+      <div className="rounded-lg border border-slate-800 bg-slate-950/46 p-4">
+        <div className="flex items-start gap-3">
+          {user?.profileImage ? (
+            <img src={user.profileImage} alt="" className="h-9 w-9 rounded-lg object-cover ring-1 ring-slate-700 shrink-0" />
+          ) : (
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-500/15 text-sm font-semibold text-blue-200 ring-1 ring-blue-400/20">
+              {(user?.firstName || 'U').charAt(0).toUpperCase()}
             </div>
-            <span className="shrink-0 rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-400">
-              {thread.replies} replies
-            </span>
+          )}
+          <div className="flex-1">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Share your approach, ask a question, or help others..."
+              className={cx(ui.input, 'w-full h-20 resize-none py-2.5')}
+              maxLength={2000}
+            />
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs text-slate-600">{newComment.length}/2000</span>
+              <button
+                onClick={handlePost}
+                disabled={posting || !newComment.trim()}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-500 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {posting ? (
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
+                Post
+              </button>
+            </div>
           </div>
         </div>
-      ))}
+      </div>
+
+      {/* Comments list */}
+      {loading ? (
+        <div className="text-sm text-slate-500 text-center py-6">Loading discussions...</div>
+      ) : comments.length === 0 ? (
+        <EmptyState
+          icon={MessageSquare}
+          title="No discussions yet"
+          description="Be the first to share your thoughts on this problem."
+        />
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-slate-500">{comments.length} comment{comments.length !== 1 ? 's' : ''}</p>
+          {comments.map((comment) => {
+            const isOwner = user?._id === comment.user?._id;
+            const isAdmin = user?.role === 'admin';
+            const canDelete = isOwner || isAdmin;
+
+            return (
+              <div key={comment._id} className="rounded-lg border border-slate-800 bg-slate-950/46 p-4">
+                <div className="flex items-start gap-3">
+                  {comment.user?.profileImage ? (
+                    <img src={comment.user.profileImage} alt="" className="h-8 w-8 rounded-lg object-cover ring-1 ring-slate-700 shrink-0" />
+                  ) : (
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-500/15 text-xs font-semibold text-blue-200 ring-1 ring-blue-400/20">
+                      {(comment.user?.firstName || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-100">
+                        {comment.user?.firstName || 'User'} {comment.user?.lastName || ''}
+                      </span>
+                      <span className="text-xs text-slate-600">·</span>
+                      <span className="text-xs text-slate-500">{formatTime(comment.createdAt)}</span>
+                    </div>
+                    <p className="mt-1.5 text-sm leading-6 text-slate-300 whitespace-pre-wrap break-words">
+                      {comment.content}
+                    </p>
+                  </div>
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(comment._id)}
+                      disabled={deletingId === comment._id}
+                      className="shrink-0 text-slate-600 hover:text-red-400 transition disabled:opacity-50"
+                      title="Delete comment"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -456,7 +582,7 @@ function ProblemPage() {
 
                 {activeLeftTab === 'submissions' && <SubmissionHistory problemId={problemId} />}
 
-                {activeLeftTab === 'discussion' && <DiscussionTab />}
+                {activeLeftTab === 'discussion' && <DiscussionTab problemId={problemId} />}
               </div>
             </GlassCard>
           )}

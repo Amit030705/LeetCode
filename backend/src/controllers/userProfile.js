@@ -157,9 +157,39 @@ const getUserActivity = async (req, res) => {
   }
 };
 
+const getUserRanking = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get all users with their problemSolved count, sorted descending
+    const allUsers = await User.find({})
+      .select('_id problemSolved')
+      .lean();
+
+    // Sort by solved count descending
+    allUsers.sort((a, b) => {
+      const aCount = a.problemSolved ? a.problemSolved.length : 0;
+      const bCount = b.problemSolved ? b.problemSolved.length : 0;
+      return bCount - aCount;
+    });
+
+    // Find the user's rank (1-indexed)
+    const rank = allUsers.findIndex(u => u._id.toString() === userId) + 1;
+    const totalUsers = allUsers.length;
+    const userEntry = allUsers.find(u => u._id.toString() === userId);
+    const solvedCount = userEntry?.problemSolved ? userEntry.problemSolved.length : 0;
+
+    res.status(200).json({ rank: rank || totalUsers, totalUsers, solvedCount });
+  } catch (error) {
+    console.error('Error fetching user ranking:', error);
+    res.status(500).json({ message: 'Failed to fetch ranking' });
+  }
+};
+
 module.exports = {
   uploadProfileImage,
   searchUsers,
   getPublicProfile,
-  getUserActivity
+  getUserActivity,
+  getUserRanking
 };
