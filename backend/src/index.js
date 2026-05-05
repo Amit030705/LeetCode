@@ -18,11 +18,20 @@ const cors = require('cors')
 app.set('trust proxy', 1);
 
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL,
-        'http://localhost:5173',
-        'http://localhost:5174'
-    ].filter(Boolean),
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            process.env.FRONTEND_URL,
+            'http://localhost:5173',
+            'http://localhost:5174'
+        ].filter(Boolean).map(url => url.replace(/\/$/, "")); // Remove trailing slashes
+
+        if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+            callback(null, true);
+        } else {
+            console.error("CORS blocked for origin:", origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true 
 }))
 
