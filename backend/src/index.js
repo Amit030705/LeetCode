@@ -21,6 +21,7 @@ app.use(cors({
     origin: function (origin, callback) {
         const allowedOrigins = [
             process.env.FRONTEND_URL,
+            'https://leetcode-3-5uak.onrender.com', // Added explicit fallback
             'http://localhost:5173',
             'http://localhost:5174'
         ].filter(Boolean).map(url => url.replace(/\/$/, "")); // Remove trailing slashes
