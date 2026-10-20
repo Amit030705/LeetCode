@@ -7,10 +7,14 @@ const hasMailConfig = () =>
 
 const createTransporter = () =>
   nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
+      user: process.env.GMAIL_USER.trim(),
+      // Google displays app passwords in groups; remove spaces/newlines if
+      // copied directly into the environment variable.
+      pass: process.env.GMAIL_APP_PASSWORD.replace(/\s+/g, ''),
     },
   });
 
