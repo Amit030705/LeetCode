@@ -3,43 +3,43 @@ const User = require("../models/user");
 const redisClient = require("../config/redis")
 
 const userMiddleware = async (req,res,next)=>{
+    const { token } = req.cookies || {};
+    if (!token) {
+        return res.status(401).json({ message: "Authentication required" });
+    }
 
-    try{
-        
-        const {token} = req.cookies;
-        if(!token)
-            throw new Error("Token is not persent");
+    let payload;
+    try {
+        payload = jwt.verify(token, process.env.JWT_KEY);
+    } catch {
+        return res.status(401).json({ message: "Invalid or expired session" });
+    }
 
-        const payload = jwt.verify(token,process.env.JWT_KEY);
+    if (!payload?._id) {
+        return res.status(401).json({ message: "Invalid session" });
+    }
 
-        const {_id} = payload;
-
-        if(!_id){
-            throw new Error("Invalid token");
+    try {
+        const result = await User.findById(payload._id);
+        if (!result) {
+            return res.status(401).json({ message: "User no longer exists" });
         }
 
-        const result = await User.findById(_id);
-
-        if(!result){
-            throw new Error("User Doesn't Exist");
+        if (!redisClient.isReady) {
+            return res.status(503).json({ message: "Authentication service is temporarily unavailable" });
         }
 
-        // Redis ke blockList mein persent toh nahi hai
-
-        const IsBlocked = await redisClient.exists(`token:${token}`);
-
-        if(IsBlocked)
-            throw new Error("Invalid Token");
+        const isBlocked = await redisClient.exists(`token:${token}`);
+        if (isBlocked) {
+            return res.status(401).json({ message: "Invalid session" });
+        }
 
         req.result = result;
-
-
-        next();
+        return next();
+    } catch (err) {
+        console.error("Session validation failed:", err.message);
+        return res.status(503).json({ message: "Authentication service is temporarily unavailable" });
     }
-    catch(err){
-        res.status(401).send("Error: "+ err.message)
-    }
-
 }
 
 

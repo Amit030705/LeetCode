@@ -1,6 +1,7 @@
 const express = require('express')
 const app = express();
 require('dotenv').config();
+const mongoose = require('mongoose');
 const main =  require('./config/db')
 const cookieParser =  require('cookie-parser');
 const authRouter = require("./routes/userAuth");
@@ -49,22 +50,39 @@ app.use("/discussion", discussionRouter);
 
 console.log("Routes registered: /user, /problem, /submission, /ai, /video, /users, /discussion");
 
+app.get('/health', (req, res) => {
+    const databaseReady = mongoose.connection.readyState === 1;
+    const redisReady = redisClient.isReady;
+    const healthy = databaseReady && redisReady;
 
-const InitalizeConnection = async ()=>{
+    res.status(healthy ? 200 : 503).json({
+        status: healthy ? 'ok' : 'degraded',
+        database: databaseReady ? 'ready' : 'unavailable',
+        redis: redisReady ? 'ready' : 'unavailable',
+    });
+});
+
+
+const initializeConnections = async () => {
     try{
+        await main();
+        console.log("MongoDB connected");
 
-        await Promise.all([main(),redisClient.connect()]);
-        console.log("DB Connected");
-        
-        app.listen(process.env.PORT, ()=>{
-            console.log("Server listening at port number: "+ process.env.PORT);
+        const port = process.env.PORT || 3000;
+        app.listen(port, () => {
+            console.log(`Server listening at port number: ${port}`);
         })
 
+        // Redis is used for token revocation. Don't keep the HTTP server from
+        // starting if Redis is temporarily unavailable; its client retries.
+        redisClient.connect().catch((err) => {
+            console.error("Redis connection unavailable; retrying in background:", err.message);
+        });
     }
     catch(err){
-        console.log("Error: "+err);
+        console.error("MongoDB connection failed; API server was not started:", err.message);
     }
 }
 
 
-InitalizeConnection();
+initializeConnections();

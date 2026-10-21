@@ -3,6 +3,14 @@ import axiosClient from './utils/axiosClient'
 
 // Helper function to extract serializable error data
 const getSerializableError = (error) => {
+  if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+    return {
+      message: 'The server is taking too long to respond. Please try again shortly.',
+      status: null,
+      data: null
+    };
+  }
+
   if (error.response) {
     // Axios error with response
     return {
@@ -29,7 +37,7 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-    const response =  await axiosClient.post('/user/register', userData);
+    const response =  await axiosClient.post('/user/register', userData, { timeout: 60000 });
     return response.data.user;
     } catch (error) {
       return rejectWithValue(getSerializableError(error));
@@ -42,7 +50,7 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await axiosClient.post('/user/login', credentials);
+      const response = await axiosClient.post('/user/login', credentials, { timeout: 60000 });
       return response.data.user;
     } catch (error) {
       return rejectWithValue(getSerializableError(error));
@@ -54,7 +62,7 @@ export const googleAuthUser = createAsyncThunk(
   'auth/google',
   async (credential, { rejectWithValue }) => {
     try {
-      const response = await axiosClient.post('/user/google', { credential });
+      const response = await axiosClient.post('/user/google', { credential }, { timeout: 60000 });
       return response.data.user;
     } catch (error) {
       return rejectWithValue(getSerializableError(error));
