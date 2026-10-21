@@ -10,12 +10,13 @@ import { forgotPassword } from '../authSlice';
 import ThemeToggle from '../components/ThemeToggle';
 
 const forgotPasswordSchema = z.object({
-  emailId: z.string().email('Enter a valid email'),
+  emailId: z.string().trim().email('Enter a valid email'),
 });
 
 function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [requestError, setRequestError] = useState('');
   const dispatch = useDispatch();
   const {
     register,
@@ -23,17 +24,21 @@ function ForgotPassword() {
     formState: { errors },
   } = useForm({ resolver: zodResolver(forgotPasswordSchema) });
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     setLoading(true);
     setMessage('');
-    dispatch(forgotPassword(data.emailId))
-      .unwrap()
-      .then((successMessage) => {
-        setMessage(successMessage);
-        toast.success('Reset link sent if the account exists');
-      })
-      .catch((err) => toast.error(err?.message || 'Could not send reset link'))
-      .finally(() => setLoading(false));
+    setRequestError('');
+    try {
+      const successMessage = await dispatch(forgotPassword(data.emailId.trim())).unwrap();
+      setMessage(successMessage);
+      toast.success('Reset link sent if the account exists');
+    } catch (err) {
+      const errorMessage = err?.message || 'Could not send reset link. Please try again.';
+      setRequestError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,6 +56,12 @@ function ForgotPassword() {
             <p className="text-[15px] leading-6 text-slate-400">Enter your email and we will send a secure reset link.</p>
           </div>
 
+          {requestError && (
+            <div role="alert" className="forgot-request-error mt-6 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-700">
+              {requestError}
+            </div>
+          )}
+
           <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="space-y-2">
               <div className={`group relative rounded-2xl border bg-[#0a111d] transition-all duration-200 ${
@@ -62,6 +73,8 @@ function ForgotPassword() {
                 <input
                   id="emailId"
                   type="email"
+                  autoComplete="email"
+                  required
                   placeholder=" "
                   aria-invalid={errors.emailId ? 'true' : 'false'}
                   className="peer h-14 w-full rounded-2xl bg-transparent px-4 pb-2 pl-12 pt-6 text-[15px] font-medium text-white outline-none transition placeholder:text-transparent"
@@ -78,7 +91,7 @@ function ForgotPassword() {
 
             {message && (
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-emerald-200">
-                {message}
+                <p role="status">{message}</p>
               </div>
             )}
 

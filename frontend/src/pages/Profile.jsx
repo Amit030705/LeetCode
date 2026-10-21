@@ -16,9 +16,15 @@ import {
   UserRound,
   Camera,
   Loader2,
+  Github,
+  Globe2,
+  Linkedin,
+  Pencil,
+  Save,
+  X,
 } from 'lucide-react';
 import axiosClient from '../utils/axiosClient';
-import { updateUserImage } from '../authSlice';
+import { updateUserImage, updateUserProfile } from '../authSlice';
 import {
   DifficultyBadge,
   EmptyState,
@@ -30,6 +36,7 @@ import {
   Heatmap
 } from '../components/ProductShell';
 import { cx, formatNumber, formatTag, getProblemTag, ui, calculateStreaks } from '../utils/uiHelpers';
+import ProfileMeta from '../components/ProfileMeta';
 
 function getCountByDifficulty(items, difficulty) {
   return items.filter((item) => item.difficulty === difficulty).length;
@@ -174,9 +181,15 @@ function ActivityRow({ title, meta, icon: Icon = CheckCircle2 }) {
 }
 
 function Profile() {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const [problems, setProblems] = useState([]);
   const [solvedProblems, setSolvedProblems] = useState([]);
+  const [profileDetails, setProfileDetails] = useState(null);
+  const [languagesSolved, setLanguagesSolved] = useState([]);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ bio: '', githubUrl: '', linkedinUrl: '', websiteUrl: '' });
   const [activityData, setActivityData] = useState({});
   const [rankData, setRankData] = useState({ rank: 0, totalUsers: 0 });
   const [loading, setLoading] = useState(true);
@@ -185,16 +198,19 @@ function Profile() {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const [problemResponse, solvedResponse, activityResponse, rankResponse] = await Promise.all([
+        const [problemResponse, solvedResponse, activityResponse, rankResponse, profileResponse] = await Promise.all([
           axiosClient.get('/problem/getAllProblem'),
           axiosClient.get('/problem/problemSolvedByUser').catch(() => ({ data: [] })),
           axiosClient.get(`/users/${user._id}/activity`).catch(() => ({ data: {} })),
           axiosClient.get(`/users/${user._id}/ranking`).catch(() => ({ data: { rank: 0, totalUsers: 0 } })),
+          axiosClient.get(`/users/${user._id}`).catch(() => ({ data: null })),
         ]);
         setProblems(Array.isArray(problemResponse.data) ? problemResponse.data : []);
         setSolvedProblems(Array.isArray(solvedResponse.data) ? solvedResponse.data : []);
         setActivityData(activityResponse.data || {});
         setRankData(rankResponse.data || { rank: 0, totalUsers: 0 });
+        setProfileDetails(profileResponse.data?.user || user);
+        setLanguagesSolved(profileResponse.data?.languagesSolved || []);
       } catch (error) {
         toast.error(error?.response?.data?.message || 'Could not load dashboard');
       } finally {
@@ -220,6 +236,33 @@ function Profile() {
     return { solved, total, easy, medium, hard, submissions, acceptanceRate, rank: rankData.rank, totalUsers: rankData.totalUsers, currentStreak, maxStreak };
   }, [problems, solvedProblems, activityData, rankData]);
 
+  const openProfileEditor = () => {
+    const details = { ...user, ...profileDetails };
+    setProfileForm({
+      bio: details.bio || '',
+      githubUrl: details.githubUrl || '',
+      linkedinUrl: details.linkedinUrl || '',
+      websiteUrl: details.websiteUrl || '',
+    });
+    setEditingProfile(true);
+  };
+
+  const saveProfile = async (event) => {
+    event.preventDefault();
+    setSavingProfile(true);
+    try {
+      const response = await axiosClient.put('/users/profile', profileForm);
+      setProfileDetails((current) => ({ ...current, ...response.data.user }));
+      dispatch(updateUserProfile(response.data.user));
+      setEditingProfile(false);
+      toast.success('Profile updated');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Could not update your profile');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const recentSolved = solvedProblems.slice(-5).reverse();
   const recommendations = problems.filter((problem) => !solvedProblems.some((solved) => solved._id === problem._id)).slice(0, 5);
   const badges = [
@@ -235,7 +278,65 @@ function Profile() {
           eyebrow="Dashboard"
           title="Profile Dashboard"
           description="Track solved problems, difficulty balance, activity, rankings, and your next best questions."
+          action={(
+            <button type="button" onClick={openProfileEditor} disabled={loading} className={ui.button.secondary}>
+              <Pencil className="h-4 w-4" /> Edit profile
+            </button>
+          )}
         />
+
+        {editingProfile && (
+          <GlassCard animate={false} className="mb-4 p-5">
+            <form onSubmit={saveProfile} className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className={ui.typography.h2}>Public profile</h2>
+                  <p className={cx(ui.typography.body, 'mt-1')}>Add a short introduction and links other people can visit.</p>
+                </div>
+                <button type="button" onClick={() => setEditingProfile(false)} className={ui.button.icon} aria-label="Close profile editor">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-semibold text-slate-700">Bio</span>
+                <textarea
+                  value={profileForm.bio}
+                  onChange={(event) => setProfileForm((form) => ({ ...form, bio: event.target.value }))}
+                  maxLength={280}
+                  rows={3}
+                  placeholder="A little about you and what you enjoy building..."
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                />
+                <span className="block text-right text-xs text-slate-500">{profileForm.bio.length}/280</span>
+              </label>
+              <div className="grid gap-3 md:grid-cols-3">
+                {[
+                  ['githubUrl', 'GitHub profile', 'https://github.com/username', Github],
+                  ['linkedinUrl', 'LinkedIn profile', 'https://linkedin.com/in/username', Linkedin],
+                  ['websiteUrl', 'Personal website', 'https://example.com', Globe2],
+                ].map(([field, label, placeholder, Icon]) => (
+                  <label key={field} className="block space-y-1.5">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Icon className="h-4 w-4" />{label}</span>
+                    <input
+                      type="url"
+                      value={profileForm[field]}
+                      onChange={(event) => setProfileForm((form) => ({ ...form, [field]: event.target.value }))}
+                      placeholder={placeholder}
+                      className={ui.input}
+                    />
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setEditingProfile(false)} className={ui.button.secondary}>Cancel</button>
+                <button type="submit" disabled={savingProfile} className={ui.button.primary}>
+                  {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {savingProfile ? 'Saving…' : 'Save profile'}
+                </button>
+              </div>
+            </form>
+          </GlassCard>
+        )}
 
         {loading ? (
           <div className="grid gap-4">
@@ -259,10 +360,8 @@ function Profile() {
                       Active coder
                     </div>
                     <h1 className="truncate text-2xl font-semibold text-slate-50">{user?.firstName || user?.username || 'Coder'}</h1>
-                    <p className="mt-1 text-sm text-slate-500">{user?.emailId || 'Complete your profile to add contact details'}</p>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                      Practicing focused problem solving with a balanced difficulty mix and steady submission rhythm.
-                    </p>
+                    <p className="mt-1 text-sm text-slate-500">{user?.emailId}</p>
+                    <ProfileMeta user={{ ...user, ...profileDetails }} languages={languagesSolved} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:w-[420px]">

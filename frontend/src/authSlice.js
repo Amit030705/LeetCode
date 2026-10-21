@@ -74,7 +74,7 @@ export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (emailId, { rejectWithValue }) => {
     try {
-      const response = await axiosClient.post('/user/forgot-password', { emailId });
+      const response = await axiosClient.post('/user/forgot-password', { emailId }, { timeout: 45000 });
       return response.data.message;
     } catch (error) {
       return rejectWithValue(getSerializableError(error));
@@ -138,6 +138,11 @@ const authSlice = createSlice({
     updateUserImage: (state, action) => {
       if (state.user) {
         state.user.profileImage = action.payload;
+      }
+    },
+    updateUserProfile: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
       }
     }
   },
@@ -237,6 +242,6 @@ const authSlice = createSlice({
   }
 });
 
-export const { updateUserImage } = authSlice.actions;
+export const { updateUserImage, updateUserProfile } = authSlice.actions;
 
 export default authSlice.reducer;

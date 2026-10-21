@@ -11,6 +11,78 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+const normalizeProfileUrl = (value, label, allowedHost) => {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string' || value.trim().length > 2048) {
+    throw new Error(`${label} must be a valid URL under 2048 characters`);
+  }
+
+  const trimmed = value.trim();
+  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    throw new Error(`${label} must be a valid URL`);
+  }
+
+  const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+  if (!['http:', 'https:'].includes(parsed.protocol) || !hostname.includes('.') || parsed.username || parsed.password) {
+    throw new Error(`${label} must be a valid public HTTP or HTTPS URL`);
+  }
+  if (allowedHost && hostname !== allowedHost) {
+    throw new Error(`${label} must link to ${allowedHost}`);
+  }
+  return parsed.toString();
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const { bio, githubUrl, linkedinUrl, websiteUrl } = req.body || {};
+    if (bio !== undefined && (typeof bio !== 'string' || bio.trim().length > 280)) {
+      return res.status(400).json({ message: 'Bio must be 280 characters or fewer' });
+    }
+
+    let profileUrls;
+    try {
+      profileUrls = {
+        githubUrl: normalizeProfileUrl(githubUrl, 'GitHub URL', 'github.com'),
+        linkedinUrl: normalizeProfileUrl(linkedinUrl, 'LinkedIn URL', 'linkedin.com'),
+        websiteUrl: normalizeProfileUrl(websiteUrl, 'Website URL'),
+      };
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.result._id,
+      { $set: { bio: typeof bio === 'string' ? bio.trim() : '', ...profileUrls } },
+      { new: true, runValidators: true }
+    ).select('-password -resetPasswordToken -resetPasswordExpires');
+
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+    return res.status(200).json({
+      message: 'Profile updated successfully',
+      user: {
+        _id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        emailId: updatedUser.emailId,
+        profileImage: updatedUser.profileImage,
+        bio: updatedUser.bio,
+        githubUrl: updatedUser.githubUrl,
+        linkedinUrl: updatedUser.linkedinUrl,
+        websiteUrl: updatedUser.websiteUrl,
+        role: updatedUser.role,
+        authProvider: updatedUser.authProvider,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    return res.status(500).json({ message: 'Failed to update profile' });
+  }
+};
+
 const uploadProfileImage = async (req, res) => {
   try {
     if (!req.file) {
@@ -102,7 +174,7 @@ const getPublicProfile = async (req, res) => {
     const { userId } = req.params;
     
     const user = await User.findById(userId)
-      .select('_id firstName lastName profileImage role problemSolved createdAt')
+      .select('_id firstName lastName profileImage bio githubUrl linkedinUrl websiteUrl role problemSolved createdAt')
       .populate('problemSolved', 'title difficulty tags _id');
 
     if (!user) {
@@ -112,6 +184,11 @@ const getPublicProfile = async (req, res) => {
     // Get all problems to calculate stats properly
     const allProblems = await Problem.find().select('_id');
     const totalProblems = allProblems.length;
+    const acceptedLanguages = await Submission.distinct('language', {
+      userId: user._id,
+      status: 'accepted',
+    });
+    const languageNames = { javascript: 'JavaScript', 'c++': 'C++', java: 'Java' };
 
     res.status(200).json({
       user: {
@@ -119,10 +196,15 @@ const getPublicProfile = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         profileImage: user.profileImage,
+        bio: user.bio || '',
+        githubUrl: user.githubUrl || '',
+        linkedinUrl: user.linkedinUrl || '',
+        websiteUrl: user.websiteUrl || '',
         role: user.role,
         createdAt: user.createdAt
       },
       solvedProblems: user.problemSolved || [],
+      languagesSolved: acceptedLanguages.map((language) => languageNames[language] || language),
       totalProblems
     });
   } catch (error) {
@@ -187,6 +269,7 @@ const getUserRanking = async (req, res) => {
 };
 
 module.exports = {
+  updateProfile,
   uploadProfileImage,
   searchUsers,
   getPublicProfile,

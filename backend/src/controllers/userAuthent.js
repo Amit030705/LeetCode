@@ -2,10 +2,11 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
+const validator = require("validator");
 const redisClient = require("../config/redis");
 const User = require("../models/user");
 const validate = require("../utils/validator");
-const { sendAuthNotificationEmail, sendPasswordResetEmail } = require("../utils/loginMailer");
+const { sendAuthNotificationEmail, sendPasswordResetEmail, isMailConfigured } = require("../utils/loginMailer");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -23,6 +24,10 @@ const getPublicUser = (user) => ({
     lastName: user.lastName,
     emailId: user.emailId,
     profileImage: user.profileImage,
+    bio: user.bio || "",
+    githubUrl: user.githubUrl || "",
+    linkedinUrl: user.linkedinUrl || "",
+    websiteUrl: user.websiteUrl || "",
     authProvider: user.authProvider,
     _id: user._id,
     role: user.role,
@@ -185,13 +190,17 @@ const googleAuth = async (req, res) => {
 
 const forgotPassword = async (req, res) => {
     try {
-        const { emailId } = req.body;
+        const emailId = String(req.body?.emailId || "").trim().toLowerCase();
 
-        if (!emailId) {
-            return res.status(400).json({ message: "Email is required" });
+        if (!validator.isEmail(emailId)) {
+            return res.status(400).json({ message: "Enter a valid email address" });
         }
 
-        const user = await User.findOne({ emailId: emailId.toLowerCase() });
+        if (!isMailConfigured()) {
+            return res.status(503).json({ message: "Password reset emails are not configured. Contact support." });
+        }
+
+        const user = await User.findOne({ emailId });
         const responseMessage = "If an account exists, a password reset link has been sent.";
 
         if (!user) {
@@ -203,10 +212,21 @@ const forgotPassword = async (req, res) => {
         user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
         await user.save({ validateBeforeSave: false });
 
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
+        const frontendUrl = (process.env.FRONTEND_URL || (isProduction
+            ? "https://leetcode-3-5uak.onrender.com"
+            : "http://localhost:5173")).replace(/\/+$/, "");
         const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
-        await sendPasswordResetEmail({ user, resetUrl });
+        try {
+            await sendPasswordResetEmail({ user, resetUrl });
+        } catch (emailError) {
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpires = undefined;
+            await user.save({ validateBeforeSave: false });
+            console.error("Password reset email delivery failed:", emailError.message);
+            return res.status(502).json({ message: "We could not deliver the reset email. Please try again later." });
+        }
 
         res.status(200).json({ message: responseMessage });
     } catch (err) {

@@ -218,6 +218,11 @@ html[data-theme="dark"] .problem-example { background: #111c2d !important; borde
 html[data-theme="dark"] .problem-example-title { color: #f8fafc !important; }
 html[data-theme="dark"] .problem-example-content { color: #e2e8f0 !important; }
 html[data-theme="dark"] .problem-example-content span { color: #94a3b8 !important; }
+html[data-theme="light"] .theme-toggle { color: #334155 !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
+html[data-theme="dark"] .theme-toggle, html[data-theme="dark"] .login-card-fade .theme-toggle { color: #f8fafc !important; background: #1e293b !important; border-color: #475569 !important; }
+html[data-theme="dark"] .forgot-request-error { color: #fecaca !important; }
+html[data-theme="dark"] .profile-meta-link { color: #bfdbfe !important; background: #172554 !important; border-color: #334155 !important; }
+html[data-theme="dark"] .profile-language-badge { color: #c7d2fe !important; background: #1e1b4b !important; border-color: #4338ca !important; }
 
 @media (prefers-reduced-motion: reduce) {
   html {

@@ -25,6 +25,30 @@ const userSchema = new Schema({
         type:String,
         default:""
     },
+    bio:{
+        type:String,
+        trim:true,
+        maxlength:280,
+        default:""
+    },
+    githubUrl:{
+        type:String,
+        trim:true,
+        maxlength:2048,
+        default:""
+    },
+    linkedinUrl:{
+        type:String,
+        trim:true,
+        maxlength:2048,
+        default:""
+    },
+    websiteUrl:{
+        type:String,
+        trim:true,
+        maxlength:2048,
+        default:""
+    },
     googleId:{
         type:String,
         unique:true,

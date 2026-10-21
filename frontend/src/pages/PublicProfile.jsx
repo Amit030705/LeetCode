@@ -23,6 +23,7 @@ import {
   Heatmap
 } from '../components/ProductShell';
 import { cx, formatNumber, formatTag, getProblemTag, ui, calculateStreaks } from '../utils/uiHelpers';
+import ProfileMeta from '../components/ProfileMeta';
 
 // Reusing some of the helper components from Profile.jsx but adapted for public view
 function getCountByDifficulty(items, difficulty) {
@@ -147,7 +148,7 @@ function PublicProfile() {
     );
   }
 
-  const { user, solvedProblems } = profileData;
+  const { user, solvedProblems, languagesSolved = [] } = profileData;
   const recentSolved = [...solvedProblems].slice(-5).reverse();
   const joinedDate = new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -174,6 +175,7 @@ function PublicProfile() {
                   <Award className="h-4 w-4 text-amber-400" />
                   Rank #{formatNumber(stats.rank)}
                 </p>
+                <ProfileMeta user={user} languages={languagesSolved} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm lg:w-[320px]">

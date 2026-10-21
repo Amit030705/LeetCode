@@ -1,15 +1,18 @@
 const nodemailer = require('nodemailer');
 
-const requiredMailConfig = ['GMAIL_USER', 'GMAIL_APP_PASSWORD'];
-
 const hasMailConfig = () =>
-  requiredMailConfig.every((key) => Boolean(process.env[key]));
+  Boolean(process.env.GMAIL_USER?.trim() && process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, ''));
+
+const isMailConfigured = hasMailConfig;
 
 const createTransporter = () =>
   nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     auth: {
       user: process.env.GMAIL_USER.trim(),
       // Google displays app passwords in groups; remove spaces/newlines if
@@ -103,6 +106,10 @@ const sendAuthNotificationEmail = async ({ user, eventType, ipAddress, userAgent
 };
 
 const sendPasswordResetEmail = async ({ user, resetUrl }) => {
+  if (!hasMailConfig()) {
+    throw new Error('Password reset email is not configured. Contact support.');
+  }
+
   const safeFirstName = escapeHtml(user.firstName || 'there');
   const safeResetUrl = escapeHtml(resetUrl);
 
@@ -133,4 +140,4 @@ const sendPasswordResetEmail = async ({ user, resetUrl }) => {
   });
 };
 
-module.exports = { sendAuthNotificationEmail, sendPasswordResetEmail };
+module.exports = { sendAuthNotificationEmail, sendPasswordResetEmail, isMailConfigured };
