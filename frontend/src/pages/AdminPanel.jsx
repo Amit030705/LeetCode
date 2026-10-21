@@ -45,6 +45,49 @@ const normalizeProblemFormat = (data = {}) => ({
   referenceSolution: normalizeLanguageEntries(data.referenceSolution, 'completeCode'),
 });
 
+const SUM_SAMPLE_PROBLEM = {
+  title: 'sum of two numbers',
+  description: 'Write a program that takes two integers as input and returns their sum.',
+  difficulty: 'easy',
+  tags: 'array',
+  visibleTestCases: [
+    { input: '2 3', output: '5', explanation: '2 + 3 equals 5' },
+    { input: '-1 5', output: '4', explanation: '-1 + 5 equals 4' },
+  ],
+  hiddenTestCases: [
+    { input: '10 20', output: '30' },
+    { input: '100 250', output: '350' },
+  ],
+  startCode: [
+    {
+      language: 'C++',
+      initialCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    // Read input here\n    cout << a + b;\n    return 0;\n}',
+    },
+    {
+      language: 'Java',
+      initialCode: 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Read input here\n    }\n}',
+    },
+    {
+      language: 'JavaScript',
+      initialCode: "const readline = require('readline');\n\n// Complete input handling here",
+    },
+  ],
+  referenceSolution: [
+    {
+      language: 'C++',
+      completeCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    cin >> a >> b;\n    cout << a + b;\n    return 0;\n}',
+    },
+    {
+      language: 'Java',
+      completeCode: 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }\n}',
+    },
+    {
+      language: 'JavaScript',
+      completeCode: "const input = require('fs').readFileSync(0, 'utf-8').trim();\nconst [a, b] = input.split(/\\s+/).map(Number);\nconsole.log(a + b);",
+    },
+  ],
+};
+
 function AdminCard({ icon: Icon, title, description, buttonText, color, onClick }) {
   const colorStyles = {
     emerald: 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950',
@@ -321,7 +364,7 @@ function ImportLeetCodeForm({ onDone }) {
 }
 
 function CreateProblemForm({ onDone }) {
-  const [json, setJson] = useState(() => JSON.stringify(normalizeProblemFormat(), null, 2));
+  const [json, setJson] = useState(() => JSON.stringify(SUM_SAMPLE_PROBLEM, null, 2));
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -349,6 +392,14 @@ function CreateProblemForm({ onDone }) {
       <p className="text-sm text-slate-400">
         Fill the visible and hidden test cases, starter code, and complete reference solutions for C++, Java, and JavaScript.
       </p>
+      <Button
+        type="button"
+        onClick={() => setJson(JSON.stringify(normalizeProblemFormat(), null, 2))}
+        variant="secondary"
+        className="w-full"
+      >
+        Reset to blank problem template
+      </Button>
       <label className="block">
         <textarea 
           value={json} 
