@@ -270,6 +270,7 @@ function ImportLeetCodeForm({ onDone }) {
   const [slug, setSlug] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchedJson, setFetchedJson] = useState('');
+  const [manualImport, setManualImport] = useState(false);
 
   const handleFetch = async (e) => {
     e.preventDefault();
@@ -277,6 +278,7 @@ function ImportLeetCodeForm({ onDone }) {
     setLoading(true);
     try {
       const { data } = await axiosClient.get(`/problem/fetch-leetcode/${encodeURIComponent(slug.trim())}`);
+      setManualImport(false);
       
       // Transform fetched data to match our schema as closely as possible
       const transformed = {
@@ -316,41 +318,61 @@ function ImportLeetCodeForm({ onDone }) {
       <h3 className="text-xl font-bold mb-4">Import from LeetCode</h3>
       
       {!fetchedJson ? (
-        <form onSubmit={handleFetch} className="space-y-4">
-          <label className="block">
-            <span className="block text-sm font-medium text-slate-400 mb-1">LeetCode Title Slug</span>
-            <input 
-              type="text" 
-              value={slug} 
-              onChange={(e) => setSlug(e.target.value)} 
-              className={cx(ui.input, "w-full")}
-              placeholder="e.g. search-insert-position"
-              required
-            />
-          </label>
-          <div className="pt-2">
-            <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
-              {loading ? 'Fetching...' : 'Fetch from LeetCode'}
-            </Button>
+        <div className="space-y-4">
+          <form onSubmit={handleFetch} className="space-y-4">
+            <label className="block">
+              <span className="block text-sm font-medium text-slate-400 mb-1">LeetCode Title Slug</span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                className={cx(ui.input, "w-full")}
+                placeholder="e.g. first-unique-character-in-a-string"
+                required
+              />
+            </label>
+            <div className="pt-2">
+              <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
+                {loading ? 'Fetching...' : 'Fetch from LeetCode'}
+              </Button>
+            </div>
+          </form>
+          <div className="relative py-1 text-center text-xs uppercase tracking-widest text-slate-500">
+            <span className="relative z-10 bg-slate-900 px-3">or</span>
+            <span className="absolute inset-x-0 top-1/2 h-px bg-slate-700" />
           </div>
-        </form>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => {
+              setManualImport(true);
+              setFetchedJson(JSON.stringify(normalizeProblemFormat(), null, 2));
+            }}
+          >
+            Paste complete problem JSON
+          </Button>
+        </div>
       ) : (
         <div className="space-y-4">
           <label className="block">
-            <span className="block text-sm font-medium text-slate-400 mb-1">Review & Modify JSON format for MongoDB</span>
+            <span className="block text-sm font-medium text-slate-400 mb-1">
+              {manualImport ? 'Paste the complete problem JSON' : 'Review and complete the imported problem JSON'}
+            </span>
             <textarea 
               value={fetchedJson} 
               onChange={(e) => setFetchedJson(e.target.value)} 
-              className={cx(ui.input, "w-full h-80 font-mono text-sm")}
+              className={cx(ui.input, "w-full h-[65vh] min-h-96 font-mono text-sm")}
+              spellCheck="false"
             />
           </label>
           <p className="text-sm text-amber-300/90">
-            LeetCode does not provide hidden tests or complete reference programs. Fill every visible and hidden
-            expected output, all three starter programs, and all three complete reference solutions before saving.
-            Convert imported examples and code to this app&apos;s standard input/output format.
+            {manualImport
+              ? 'Use the complete format: visibleTestCases, hiddenTestCases, startCode, and referenceSolution with C++, Java, and JavaScript entries.'
+              : 'LeetCode does not provide hidden tests or complete reference programs. Fill every expected output, all three starter programs, and all three complete reference solutions. Convert imported examples and code to this app’s standard input/output format.'}
           </p>
           <div className="flex gap-3 pt-2">
-            <Button onClick={() => setFetchedJson('')} variant="secondary" className="flex-1">
+            <Button onClick={() => { setFetchedJson(''); setManualImport(false); }} variant="secondary" className="flex-1">
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={loading} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white">
