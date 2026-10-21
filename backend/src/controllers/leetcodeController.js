@@ -46,7 +46,14 @@ const htmlToText = (html) => decodeHtml(html
 
 const extractExamples = (content = '') => {
   const cases = [];
-  const blocks = [...content.matchAll(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi)].map((match) => match[1]);
+  let blocks = [...content.matchAll(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi)].map((match) => match[1]);
+
+  // LeetCode now often renders examples as paragraphs inside example-block
+  // divs rather than the older <pre> markup.
+  if (!blocks.length) {
+    blocks = [...content.matchAll(/<div\b[^>]*class=["'][^"']*\bexample-block\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi)]
+      .map((match) => match[1]);
+  }
 
   for (const block of blocks) {
     const text = htmlToText(block);

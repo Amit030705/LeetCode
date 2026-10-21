@@ -5,6 +5,34 @@ const Submission = require('../models/submission');
 const SolutionVideo = require('../models/solutionVideo');
 const cloudinary = require('cloudinary').v2;
 
+const REQUIRED_LANGUAGES = ['c++', 'java', 'javascript'];
+
+const validateLanguageEntries = (entries, codeField, label) => {
+  if (!Array.isArray(entries)) throw new Error(`${label} must be an array`);
+
+  const found = new Set();
+  for (const [index, entry] of entries.entries()) {
+    const language = String(entry?.language || '').trim().toLowerCase();
+    const normalizedLanguage = language === 'cpp' ? 'c++' : language;
+    if (!REQUIRED_LANGUAGES.includes(normalizedLanguage)) {
+      throw new Error(`${label} item ${index + 1} must use C++, Java, or JavaScript`);
+    }
+    if (found.has(normalizedLanguage)) {
+      throw new Error(`${label} contains duplicate ${entry.language} entries`);
+    }
+    found.add(normalizedLanguage);
+    if (typeof entry?.[codeField] !== 'string' || !entry[codeField].trim()) {
+      throw new Error(`${label} for ${entry.language} cannot be empty`);
+    }
+  }
+
+  const missing = REQUIRED_LANGUAGES.filter((language) => !found.has(language));
+  if (missing.length) {
+    const displayNames = { 'c++': 'C++', java: 'Java', javascript: 'JavaScript' };
+    throw new Error(`${label} must include ${missing.map((language) => displayNames[language]).join(', ')}`);
+  }
+};
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -24,8 +52,8 @@ const validateProblem = (payload) => {
   const references = payload.referenceSolution ?? [];
   if (!Array.isArray(visible) || visible.length === 0) throw new Error('Add at least one visible test case');
   if (!Array.isArray(hidden) || hidden.length === 0) throw new Error('Add at least one hidden test case before publishing');
-  if (!Array.isArray(starter) || starter.length === 0) throw new Error('Add starter code for at least one language');
-  if (!Array.isArray(references)) throw new Error('referenceSolution must be an array');
+  validateLanguageEntries(starter, 'initialCode', 'startCode');
+  validateLanguageEntries(references, 'completeCode', 'referenceSolution');
 
   for (const [index, testCase] of visible.entries()) {
     if (typeof testCase.input !== 'string' || typeof testCase.output !== 'string' || !testCase.output.trim()) {

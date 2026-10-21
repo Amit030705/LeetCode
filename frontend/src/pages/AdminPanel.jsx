@@ -13,6 +13,38 @@ const getRequestError = (error, fallback) =>
   error.message ||
   fallback;
 
+const PROBLEM_LANGUAGES = ['C++', 'Java', 'JavaScript'];
+
+const languageKey = (language = '') => {
+  const normalized = String(language).trim().toLowerCase();
+  return normalized === 'cpp' ? 'c++' : normalized;
+};
+
+const normalizeLanguageEntries = (entries, codeField) => PROBLEM_LANGUAGES.map((language) => {
+  const existing = (Array.isArray(entries) ? entries : []).find(
+    (entry) => languageKey(entry?.language) === languageKey(language)
+  );
+  return {
+    language,
+    [codeField]: typeof existing?.[codeField] === 'string' ? existing[codeField] : '',
+  };
+});
+
+const normalizeProblemFormat = (data = {}) => ({
+  title: data.title || '',
+  description: data.description || '',
+  difficulty: data.difficulty || 'easy',
+  tags: Array.isArray(data.tags) ? data.tags[0] || 'array' : data.tags || 'array',
+  visibleTestCases: data.visibleTestCases?.length
+    ? data.visibleTestCases
+    : [{ input: '', output: '', explanation: '' }],
+  hiddenTestCases: data.hiddenTestCases?.length
+    ? data.hiddenTestCases
+    : [{ input: '', output: '' }],
+  startCode: normalizeLanguageEntries(data.startCode, 'initialCode'),
+  referenceSolution: normalizeLanguageEntries(data.referenceSolution, 'completeCode'),
+});
+
 function AdminCard({ icon: Icon, title, description, buttonText, color, onClick }) {
   const colorStyles = {
     emerald: 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950',
@@ -205,14 +237,8 @@ function ImportLeetCodeForm({ onDone }) {
       
       // Transform fetched data to match our schema as closely as possible
       const transformed = {
-        title: data.title || '',
-        description: data.description || '',
-        difficulty: data.difficulty || 'easy',
-        tags: data.tags?.[0] || 'array',
-        visibleTestCases: data.visibleTestCases || [],
-        hiddenTestCases: [],
-        startCode: data.codeSnippets || [],
-        referenceSolution: []
+        ...normalizeProblemFormat(data),
+        startCode: normalizeLanguageEntries(data.codeSnippets, 'initialCode'),
       };
 
       setFetchedJson(JSON.stringify(transformed, null, 2));
@@ -276,8 +302,9 @@ function ImportLeetCodeForm({ onDone }) {
             />
           </label>
           <p className="text-sm text-amber-300/90">
-            LeetCode does not provide hidden judge tests or reference solutions here. Add at least one hidden test case
-            with an expected output before saving; otherwise submissions would not be meaningfully checked.
+            LeetCode does not provide hidden tests or complete reference programs. Fill every visible and hidden
+            expected output, all three starter programs, and all three complete reference solutions before saving.
+            Convert imported examples and code to this app&apos;s standard input/output format.
           </p>
           <div className="flex gap-3 pt-2">
             <Button onClick={() => setFetchedJson('')} variant="secondary" className="flex-1">
@@ -294,7 +321,7 @@ function ImportLeetCodeForm({ onDone }) {
 }
 
 function CreateProblemForm({ onDone }) {
-  const [json, setJson] = useState('{\n  "title": "",\n  "description": "",\n  "difficulty": "easy",\n  "tags": "array",\n  "visibleTestCases": [],\n  "hiddenTestCases": [],\n  "startCode": [],\n  "referenceSolution": []\n}');
+  const [json, setJson] = useState(() => JSON.stringify(normalizeProblemFormat(), null, 2));
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -318,12 +345,15 @@ function CreateProblemForm({ onDone }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-xl font-bold mb-4">Create Problem (Raw JSON)</h3>
+      <h3 className="text-xl font-bold mb-2">Create Problem</h3>
+      <p className="text-sm text-slate-400">
+        Fill the visible and hidden test cases, starter code, and complete reference solutions for C++, Java, and JavaScript.
+      </p>
       <label className="block">
         <textarea 
           value={json} 
           onChange={(e) => setJson(e.target.value)} 
-          className={cx(ui.input, "w-full h-64 font-mono text-sm")}
+          className={cx(ui.input, "w-full h-[65vh] min-h-96 font-mono text-sm")}
           required
         />
       </label>
@@ -372,16 +402,7 @@ function UpdateProblemForm() {
       const res = await axiosClient.get(`/problem/admin/problemById/${problemId}`);
       const data = res.data;
       // Remove fields that shouldn't be edited or are read-only
-      const editable = {
-        title: data.title,
-        description: data.description,
-        difficulty: data.difficulty,
-        tags: data.tags,
-        visibleTestCases: data.visibleTestCases || [],
-        hiddenTestCases: data.hiddenTestCases || [],
-        startCode: data.startCode || [],
-        referenceSolution: data.referenceSolution || [],
-      };
+      const editable = normalizeProblemFormat(data);
       setEditJson(JSON.stringify(editable, null, 2));
       setEditingId(problemId);
     } catch {
