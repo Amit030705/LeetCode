@@ -127,7 +127,7 @@ function Signup() {
           {error && (
             <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{typeof error === 'string' ? error : 'Unable to create account.'}</span>
+              <span>{typeof error === 'string' ? error : error?.message || 'Unable to create account.'}</span>
             </div>
           )}
 

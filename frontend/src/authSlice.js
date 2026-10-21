@@ -98,6 +98,10 @@ export const checkAuth = createAsyncThunk(
       }
       return rejectWithValue(getSerializableError(error));
     }
+  },
+  {
+    // React StrictMode can run the startup effect twice in development.
+    condition: (_, { getState }) => getState().auth.sessionStatus !== 'checking'
   }
 );
 
@@ -118,6 +122,7 @@ const authSlice = createSlice({
   initialState: {
     user: null,
     isAuthenticated: false,
+    sessionStatus: 'unknown',
     loading: false,
     error: null
   },
@@ -139,12 +144,14 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = !!action.payload;
         state.user = action.payload;
+        state.sessionStatus = action.payload ? 'authenticated' : 'anonymous';
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Something went wrong';
         state.isAuthenticated = false;
         state.user = null;
+        state.sessionStatus = 'anonymous';
       })
   
       // Login User Cases
@@ -156,12 +163,14 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = !!action.payload;
         state.user = action.payload;
+        state.sessionStatus = action.payload ? 'authenticated' : 'anonymous';
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Something went wrong';
         state.isAuthenticated = false;
         state.user = null;
+        state.sessionStatus = 'anonymous';
       })
 
       // Google Auth Cases
@@ -173,29 +182,29 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = !!action.payload;
         state.user = action.payload;
+        state.sessionStatus = action.payload ? 'authenticated' : 'anonymous';
       })
       .addCase(googleAuthUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Google sign-in failed';
         state.isAuthenticated = false;
         state.user = null;
+        state.sessionStatus = 'anonymous';
       })
   
       // Check Auth Cases
       .addCase(checkAuth.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+        state.sessionStatus = 'checking';
       })
       .addCase(checkAuth.fulfilled, (state, action) => {
-        state.loading = false;
         state.isAuthenticated = !!action.payload;
         state.user = action.payload;
+        state.sessionStatus = action.payload ? 'authenticated' : 'anonymous';
       })
-      .addCase(checkAuth.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload?.message || 'Something went wrong';
+      .addCase(checkAuth.rejected, (state) => {
         state.isAuthenticated = false;
         state.user = null;
+        state.sessionStatus = 'anonymous';
       })
   
       // Logout User Cases
@@ -207,12 +216,14 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = null;
         state.isAuthenticated = false;
+        state.sessionStatus = 'anonymous';
         state.error = null;
       })
       .addCase(logoutUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Something went wrong';
         state.isAuthenticated = false;
+        state.sessionStatus = 'anonymous';
         state.user = null;
       });
   }
