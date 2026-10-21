@@ -250,9 +250,15 @@ const logout = async (req, res) => {
 
         if (token) {
             const payload = jwt.decode(token);
-            if (payload?.exp) {
-                await redisClient.set(`token:${token}`, "Blocked");
-                await redisClient.expireAt(`token:${token}`, payload.exp);
+            if (payload?.exp && redisClient.isReady) {
+                try {
+                    await redisClient.set(`token:${token}`, "Blocked", {
+                        EXAT: payload.exp,
+                    });
+                } catch (redisError) {
+                    // Always clear the browser cookie even when Redis is down.
+                    console.error("Could not revoke session in Redis:", redisError.message);
+                }
             }
         }
 

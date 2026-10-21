@@ -53,10 +53,13 @@ console.log("Routes registered: /user, /problem, /submission, /ai, /video, /user
 app.get('/health', (req, res) => {
     const databaseReady = mongoose.connection.readyState === 1;
     const redisReady = redisClient.isReady;
-    const healthy = databaseReady && redisReady;
+    // Redis is an optional token-revocation store. Session checks fall back
+    // to the short-lived JWT when Redis is unavailable, so only MongoDB
+    // determines whether the API can serve requests.
+    const healthy = databaseReady;
 
     res.status(healthy ? 200 : 503).json({
-        status: healthy ? 'ok' : 'degraded',
+        status: healthy ? (redisReady ? 'ok' : 'degraded') : 'unavailable',
         database: databaseReady ? 'ready' : 'unavailable',
         redis: redisReady ? 'ready' : 'unavailable',
     });

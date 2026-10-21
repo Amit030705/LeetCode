@@ -25,13 +25,18 @@ const userMiddleware = async (req,res,next)=>{
             return res.status(401).json({ message: "User no longer exists" });
         }
 
-        if (!redisClient.isReady) {
-            return res.status(503).json({ message: "Authentication service is temporarily unavailable" });
-        }
-
-        const isBlocked = await redisClient.exists(`token:${token}`);
-        if (isBlocked) {
-            return res.status(401).json({ message: "Invalid session" });
+        // Redis only stores revoked tokens. A Redis outage must not lock out
+        // every signed-in user; JWTs are short-lived (one hour), so continue
+        // with signature and database checks when the revocation store is down.
+        if (redisClient.isReady) {
+            try {
+                const isBlocked = await redisClient.exists(`token:${token}`);
+                if (isBlocked) {
+                    return res.status(401).json({ message: "Invalid session" });
+                }
+            } catch (redisError) {
+                console.error("Token revocation check unavailable:", redisError.message);
+            }
         }
 
         req.result = result;

@@ -21,11 +21,16 @@ const adminMiddleware = async (req, res, next) => {
     if (user.role !== 'admin' || payload.role !== 'admin') {
       return res.status(403).json({ message: 'Administrator access required' });
     }
-    if (!redisClient.isReady) {
-      return res.status(503).json({ message: 'Authentication service is temporarily unavailable' });
-    }
-    if (await redisClient.exists(`token:${token}`)) {
-      return res.status(401).json({ message: 'Invalid session' });
+    // Redis stores revoked tokens only. Keep session validation available
+    // during a Redis outage; the signed JWT still expires after one hour.
+    if (redisClient.isReady) {
+      try {
+        if (await redisClient.exists(`token:${token}`)) {
+          return res.status(401).json({ message: 'Invalid session' });
+        }
+      } catch (redisError) {
+        console.error('Token revocation check unavailable:', redisError.message);
+      }
     }
 
     req.result = user;
