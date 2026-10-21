@@ -8,6 +8,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 import { AlertCircle, ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react';
 import { googleAuthUser, loginUser } from '../authSlice';
+import ThemeToggle from '../components/ThemeToggle';
 
 const loginSchema = z.object({
   emailId: z.string().email('Invalid Email'),
@@ -17,7 +18,7 @@ const loginSchema = z.object({
 function BrandMark() {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#1a73e8] text-lg font-semibold text-white shadow-[0_14px_30px_rgba(26,115,232,0.28)]">
+      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-600 text-lg font-semibold text-white shadow-[0_14px_30px_rgba(37,99,235,0.30)]">
         L
       </div>
       <div>
@@ -40,14 +41,14 @@ function FloatingInput({
   return (
     <div className="space-y-2">
       <div
-        className={`group relative rounded-2xl border bg-slate-950/70 transition-all duration-200 ${
+        className={`group relative rounded-2xl border bg-[#0a111d] transition-all duration-200 ${
           error
             ? 'border-red-300 shadow-[0_0_0_4px_rgba(239,68,68,0.08)]'
-            : 'border-white/10 shadow-sm hover:border-cyan-300/30 focus-within:border-cyan-300/50 focus-within:shadow-[0_0_0_4px_rgba(34,211,238,0.10)]'
+            : 'border-slate-700/80 shadow-sm hover:border-blue-400/35 focus-within:border-blue-400/60 focus-within:shadow-[0_0_0_4px_rgba(59,130,246,0.12)]'
         }`}
       >
         {Icon && (
-          <Icon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-[#1a73e8]" />
+          <Icon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-blue-400" />
         )}
         <input
           id={id}
@@ -64,14 +65,14 @@ function FloatingInput({
           htmlFor={id}
           className={`pointer-events-none absolute top-2 text-xs font-medium transition-all duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-[15px] peer-placeholder-shown:font-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:font-medium ${
             Icon ? 'left-12' : 'left-4'
-          } ${error ? 'text-red-300' : 'text-slate-400 peer-focus:text-cyan-200'}`}
+          } ${error ? 'text-red-300' : 'text-slate-400 peer-focus:text-blue-300'}`}
         >
           {label}
         </label>
         {rightAction}
       </div>
       {error && (
-        <p id={`${id}-error`} className="flex items-center gap-1.5 text-sm font-medium text-red-600">
+        <p id={`${id}-error`} className="flex items-center gap-1.5 text-sm font-medium text-red-300">
           <AlertCircle className="h-4 w-4" />
           {error.message}
         </p>
@@ -118,11 +119,12 @@ function Login() {
   };
 
   return (
-    <main className="login-page-shell min-h-screen bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_85%_0%,rgba(139,92,246,0.20),transparent_32%),linear-gradient(180deg,#020617_0%,#08111f_45%,#020617_100%)] px-4 py-8 text-white antialiased sm:px-6 lg:px-8">
+    <main className="login-page-shell min-h-screen bg-[radial-gradient(circle_at_15%_10%,rgba(59,130,246,0.16),transparent_30%),radial-gradient(circle_at_85%_0%,rgba(99,102,241,0.16),transparent_32%),linear-gradient(180deg,#080d16_0%,#0b1320_52%,#080d16_100%)] px-4 py-8 text-white antialiased sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center justify-center">
-        <section className="login-card-fade w-full max-w-[440px] rounded-[28px] border border-white/10 bg-white/[0.065] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl sm:p-8">
-          <div className="mb-10">
+        <section className="login-card-fade w-full max-w-[460px] rounded-[28px] border border-slate-700/70 bg-[#101722]/95 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.48)] backdrop-blur-2xl sm:p-9">
+          <div className="mb-10 flex items-center justify-between">
             <BrandMark />
+            <ThemeToggle />
           </div>
 
           <div className="space-y-2">
@@ -131,7 +133,7 @@ function Login() {
           </div>
 
           {error && (
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm font-medium text-red-200">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{typeof error === 'string' ? error : error?.message || 'Unable to sign in. Please try again.'}</span>
             </div>
@@ -157,7 +159,7 @@ function Login() {
               rightAction={
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
+                  className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400/30"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
@@ -169,7 +171,7 @@ function Login() {
             <div className="flex justify-start">
               <NavLink
                 to="/forgot-password"
-                className="rounded-full px-1 text-sm font-semibold text-[#1a73e8] transition hover:text-[#1558b0] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/25"
+                className="rounded-full px-1 text-sm font-semibold text-blue-400 transition hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500/25"
               >
                 Forgot password?
               </NavLink>
@@ -177,7 +179,7 @@ function Login() {
 
             <button
               type="submit"
-              className="group flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#1a73e8] px-5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(26,115,232,0.28)] transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:bg-[#1669d6] hover:shadow-[0_18px_34px_rgba(26,115,232,0.34)] focus:outline-none focus:ring-4 focus:ring-[#1a73e8]/20 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:scale-100"
+              className="group flex h-12 w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(37,99,235,0.30)] transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:bg-blue-500 hover:shadow-[0_18px_34px_rgba(37,99,235,0.36)] focus:outline-none focus:ring-4 focus:ring-blue-500/25 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:scale-100"
               disabled={loading}
             >
               {loading ? (
@@ -195,12 +197,12 @@ function Login() {
           </form>
 
           <div className="my-7 flex items-center gap-4">
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-slate-700" />
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">or</span>
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-slate-700" />
           </div>
 
-          <div className="overflow-hidden rounded-full border border-white/10 bg-white p-1 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:border-cyan-300/30">
+          <div className="overflow-hidden rounded-full border border-white/10 bg-white p-1 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:border-blue-400/30">
             {googleClientId ? (
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
@@ -227,7 +229,7 @@ function Login() {
             New to LeecoAI?{' '}
             <NavLink
               to="/signup"
-              className="font-semibold text-[#1a73e8] transition hover:text-[#1558b0] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/25"
+              className="font-semibold text-blue-400 transition hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500/25"
             >
               Create account
             </NavLink>

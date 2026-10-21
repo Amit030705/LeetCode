@@ -87,7 +87,7 @@ function TabButton({ active, icon: Icon, label, onClick }) {
       onClick={onClick}
       className={cx(
         'inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition',
-        active ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+        active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-900',
       )}
     >
       <Icon className="h-4 w-4" />
@@ -119,7 +119,7 @@ function TextContent({ text }) {
 
   return (
     <div 
-      className="text-sm leading-7 text-slate-300 [&_p]:mb-4 last:[&_p]:mb-0 [&_pre]:mb-4 [&_pre]:bg-slate-900/80 [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-slate-800 [&_pre]:overflow-x-auto [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:mb-4 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:mb-4 [&_ol]:space-y-1 [&_code]:bg-slate-800/80 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-blue-300 [&_code]:font-mono [&_code]:text-[13px] [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-inherit [&_strong]:text-slate-200 [&_strong]:font-semibold"
+      className="statement-content text-[15px] leading-7 text-slate-700 [&_p]:mb-4 last:[&_p]:mb-0 [&_pre]:mb-4 [&_pre]:bg-slate-100 [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-slate-200 [&_pre]:overflow-x-auto [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:mb-4 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:mb-4 [&_ol]:space-y-1 [&_code]:bg-blue-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-blue-800 [&_code]:font-mono [&_code]:text-[13px] [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-slate-800 [&_strong]:text-slate-900 [&_strong]:font-semibold"
       dangerouslySetInnerHTML={{ __html: text }}
     />
   );
@@ -127,18 +127,18 @@ function TextContent({ text }) {
 
 function ExampleCard({ example, index }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950/46 p-4">
-      <p className="mb-3 text-sm font-semibold text-slate-100">Example {index + 1}</p>
-      <div className="space-y-2 font-mono text-sm leading-6 text-slate-300">
+    <div className="problem-example rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="problem-example-title mb-3 text-sm font-semibold text-slate-900">Example {index + 1}</p>
+      <div className="problem-example-content space-y-2 font-mono text-sm leading-6 text-slate-700">
         <p>
-          <span className="text-slate-500">Input:</span> {example.input}
+          <span className="font-semibold text-slate-500">Input:</span> {example.input}
         </p>
         <p>
-          <span className="text-slate-500">Output:</span> {example.output}
+          <span className="font-semibold text-slate-500">Output:</span> {example.output}
         </p>
         {example.explanation && (
           <p>
-            <span className="text-slate-500">Explanation:</span> {example.explanation}
+            <span className="font-semibold text-slate-500">Explanation:</span> {example.explanation}
           </p>
         )}
       </div>

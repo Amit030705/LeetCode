@@ -8,6 +8,9 @@ import { Provider } from 'react-redux';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from 'react-hot-toast';
 
+const savedTheme = localStorage.getItem('leecoai-theme') === 'dark' ? 'dark' : 'light';
+document.documentElement.dataset.theme = savedTheme;
+
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const app = (
   <Provider store={store}>
@@ -18,10 +21,10 @@ const app = (
         toastOptions={{
           duration: 3600,
           style: {
-            background: '#0f172a',
-            border: '1px solid #1e293b',
+            background: 'var(--toast-bg)',
+            border: '1px solid var(--toast-border)',
             borderRadius: '8px',
-            color: '#f8fafc',
+            color: 'var(--toast-color)',
             fontWeight: 600,
             boxShadow: '0 18px 60px rgba(0,0,0,0.28)',
           },

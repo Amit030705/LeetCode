@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Moon,
   Search,
   ShieldAlert,
   UserRound,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { logoutUser } from '../authSlice';
 import { cx, formatDifficulty, getDifficultyStyle, getStatusStyle, ui } from '../utils/uiHelpers';
+import ThemeToggle from './ThemeToggle';
 
 const navItems = [
   { label: 'Problems', to: '/problems', icon: Search, match: (pathname) => pathname === '/' || pathname.startsWith('/problem') || pathname.startsWith('/problems') },
@@ -26,12 +26,13 @@ const navItems = [
 export function BrandLogo() {
   return (
     <NavLink to="/problems" className="group flex items-center gap-3" aria-label="LeecoAI problems">
-      <div className="grid h-10 w-10 place-items-center rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-300 transition group-hover:border-blue-400/40 group-hover:bg-blue-500/15">
-        <Code2 className="h-5 w-5" />
+      <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 text-white shadow-[0_8px_28px_rgba(59,130,246,0.28)] transition group-hover:-rotate-3 group-hover:scale-105">
+        <div className="absolute inset-px rounded-[14px] border border-white/20" />
+        <Code2 className="relative h-5 w-5" strokeWidth={2.1} />
       </div>
       <div className="leading-none">
-        <p className="text-sm font-semibold text-slate-50">LeecoAI</p>
-        <p className="mt-1 text-xs font-medium text-slate-500">Coding Platform</p>
+        <p className="text-[15px] font-bold tracking-tight text-slate-900">LeecoAI</p>
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Code with focus</p>
       </div>
     </NavLink>
   );
@@ -51,7 +52,7 @@ function UserAvatar({ user, size = 'sm' }) {
   }
 
   return (
-    <div className={cx(dimensions, 'grid place-items-center rounded-lg bg-blue-500/15 font-semibold text-blue-200 ring-1 ring-blue-400/20')}>
+    <div className={cx(dimensions, 'grid place-items-center rounded-lg bg-blue-50 font-semibold text-blue-700 ring-1 ring-blue-200')}>
       {(user?.firstName || user?.username || 'U').charAt(0).toUpperCase()}
     </div>
   );
@@ -66,8 +67,8 @@ function NavItem({ item, pathname, onClick }) {
       to={item.to}
       onClick={onClick}
       className={cx(
-        'inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition',
-        active ? 'bg-slate-800 text-slate-50' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+        'inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-[13px] font-semibold transition',
+        active ? 'border border-blue-200 bg-blue-50 text-blue-700' : 'border border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900',
       )}
     >
       <Icon className="h-4 w-4" />
@@ -99,41 +100,39 @@ export function ProductNavbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-800/90 bg-slate-950/86 backdrop-blur-xl">
-      <nav className={cx(ui.layout.navbarHeight, 'mx-auto flex max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8')}>
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 shadow-[0_4px_18px_rgba(15,23,42,0.05)] backdrop-blur-2xl">
+      <nav className={cx(ui.layout.navbarHeight, 'mx-auto flex max-w-[1480px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8')}>
         <BrandLogo />
 
         <div className="hidden items-center gap-1 md:flex">
           {navItems.map((item) => (
             <NavItem key={item.to} item={item} pathname={pathname} />
           ))}
-          <form onSubmit={handleSearch} className="relative ml-4">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <form onSubmit={handleSearch} className="relative ml-3">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Find a coder..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-48 rounded-md border border-slate-700 bg-slate-900 pl-9 pr-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+              className="h-10 w-52 rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-[13px] font-medium text-slate-800 placeholder:text-slate-400 transition-all focus:border-blue-400/60 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-400/10"
             />
           </form>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
           {user?.role === 'admin' && (
             <NavLink
               to="/admin"
-              className="flex h-10 items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 text-sm font-bold text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20"
+              className="flex h-10 items-center gap-2 rounded-xl border border-indigo-400/20 bg-indigo-400/[0.08] px-3.5 text-[13px] font-bold text-indigo-200 transition hover:border-indigo-300/40 hover:bg-indigo-400/[0.14]"
             >
-              Admin
+              <ShieldAlert className="h-4 w-4" /> Admin
             </NavLink>
           )}
-          <button className={ui.button.icon} aria-label="Toggle dark mode">
-            <Moon className="h-4 w-4" />
-          </button>
           <NavLink
             to="/dashboard"
-            className="flex h-10 items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-2 pr-3 text-sm font-semibold text-slate-100 transition hover:border-slate-700 hover:bg-slate-800"
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-1.5 pr-3 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
           >
             <UserAvatar user={user} />
             <span className="max-w-28 truncate">{user?.firstName || user?.username || 'Profile'}</span>
@@ -153,9 +152,10 @@ export function ProductNavbar() {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          className="border-t border-slate-800 bg-slate-950/96 px-4 py-3 md:hidden"
+          className="border-t border-slate-200 bg-white px-4 py-4 shadow-xl backdrop-blur-2xl md:hidden"
         >
           <div className="mx-auto max-w-[1440px] space-y-1">
+            <div className="mb-3 flex justify-end"><ThemeToggle /></div>
             <form onSubmit={handleSearch} className="relative mb-3">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
@@ -163,7 +163,7 @@ export function ProductNavbar() {
                 placeholder="Search users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </form>
             {navItems.map((item) => (
@@ -203,7 +203,7 @@ export function ProductNavbar() {
 
 export function ProductFooter() {
   return (
-    <footer className="border-t border-slate-800/90 bg-slate-950 px-4 py-6 sm:px-6 lg:px-8">
+    <footer className="border-t border-slate-200 bg-white px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between text-xs font-medium text-slate-500">
         <span>LeecoAI</span>
         <span>Focused coding practice workspace</span>
@@ -214,9 +214,8 @@ export function ProductFooter() {
 
 export function ProductShell({ children, footer = false }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased">
-      <div className="fixed inset-0 -z-10 bg-[linear-gradient(180deg,#020617_0%,#07111f_48%,#020617_100%)]" />
-      <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.14] [background-image:linear-gradient(rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:48px_48px]" />
+    <div className="min-h-screen bg-[#f6f8fc] text-slate-800 antialiased">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_8%_0%,rgba(59,130,246,0.09),transparent_34%),radial-gradient(ellipse_at_92%_10%,rgba(99,102,241,0.06),transparent_30%),linear-gradient(180deg,#f8faff_0%,#f6f8fc_55%,#f3f6fb_100%)]" />
       <ProductNavbar />
       {children}
       {footer && <ProductFooter />}
