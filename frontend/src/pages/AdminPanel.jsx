@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import axios from 'axios';
 import { ProductShell, GlassCard, Button } from '../components/ProductShell';
 import { Plus, Edit, Trash2, Video, RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
 import axiosClient from '../utils/axiosClient';
 import toast from 'react-hot-toast';
 import { cx, ui } from '../utils/uiHelpers';
+
+const getRequestError = (error, fallback) =>
+  error.response?.data?.message ||
+  (typeof error.response?.data === 'string' ? error.response.data : null) ||
+  error.message ||
+  fallback;
 
 function AdminCard({ icon: Icon, title, description, buttonText, color, onClick }) {
   const colorStyles = {
@@ -38,7 +45,7 @@ function AdminCard({ icon: Icon, title, description, buttonText, color, onClick 
   );
 }
 
-function DeleteProblemForm({ onDone }) {
+function DeleteProblemForm() {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
@@ -74,7 +81,7 @@ function DeleteProblemForm({ onDone }) {
       setConfirmId(null);
       fetchProblems();
     } catch (err) {
-      toast.error(err.response?.data?.message || typeof err.response?.data === 'string' ? err.response?.data : 'Failed to delete');
+      toast.error(getRequestError(err, 'Failed to delete problem'));
     } finally {
       setDeletingId(null);
     }
@@ -194,33 +201,24 @@ function ImportLeetCodeForm({ onDone }) {
     if (!slug) return;
     setLoading(true);
     try {
-      const { data } = await axiosClient.get(`/problem/fetch-leetcode/${slug}`);
+      const { data } = await axiosClient.get(`/problem/fetch-leetcode/${encodeURIComponent(slug.trim())}`);
       
       // Transform fetched data to match our schema as closely as possible
       const transformed = {
         title: data.title || '',
         description: data.description || '',
         difficulty: data.difficulty || 'easy',
-        tags: (data.tags && data.tags[0]) || 'array', // Schema only accepts enum strings like 'array', 'binary-search', etc.
-        visibleTestCases: [
-          {
-            input: data.sampleTestCase || '',
-            output: '',
-            explanation: ''
-          }
-        ],
+        tags: data.tags?.[0] || 'array',
+        visibleTestCases: data.visibleTestCases || [],
         hiddenTestCases: [],
-        startCode: (data.codeSnippets || []).map(snippet => ({
-          language: snippet.lang,
-          initialCode: snippet.code
-        })),
+        startCode: data.codeSnippets || [],
         referenceSolution: []
       };
 
       setFetchedJson(JSON.stringify(transformed, null, 2));
       toast.success('Problem fetched. Please review and save.');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to fetch problem');
+      toast.error(getRequestError(err, 'Failed to fetch problem'));
     } finally {
       setLoading(false);
     }
@@ -237,7 +235,7 @@ function ImportLeetCodeForm({ onDone }) {
       if (err instanceof SyntaxError) {
         toast.error('Invalid JSON format');
       } else {
-        toast.error(err.response?.data?.message || (typeof err.response?.data === 'string' ? err.response?.data : null) || 'Failed to save problem');
+        toast.error(getRequestError(err, 'Failed to save problem'));
       }
     } finally {
       setLoading(false);
@@ -277,6 +275,10 @@ function ImportLeetCodeForm({ onDone }) {
               className={cx(ui.input, "w-full h-80 font-mono text-sm")}
             />
           </label>
+          <p className="text-sm text-amber-300/90">
+            LeetCode does not provide hidden judge tests or reference solutions here. Add at least one hidden test case
+            with an expected output before saving; otherwise submissions would not be meaningfully checked.
+          </p>
           <div className="flex gap-3 pt-2">
             <Button onClick={() => setFetchedJson('')} variant="secondary" className="flex-1">
               Cancel
@@ -334,7 +336,7 @@ function CreateProblemForm({ onDone }) {
   );
 }
 
-function UpdateProblemForm({ onDone }) {
+function UpdateProblemForm() {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
@@ -367,7 +369,7 @@ function UpdateProblemForm({ onDone }) {
   const handleEdit = async (problemId) => {
     setFetchingId(problemId);
     try {
-      const res = await axiosClient.get(`/problem/problemById/${problemId}`);
+      const res = await axiosClient.get(`/problem/admin/problemById/${problemId}`);
       const data = res.data;
       // Remove fields that shouldn't be edited or are read-only
       const editable = {
@@ -382,7 +384,7 @@ function UpdateProblemForm({ onDone }) {
       };
       setEditJson(JSON.stringify(editable, null, 2));
       setEditingId(problemId);
-    } catch (err) {
+    } catch {
       toast.error('Failed to fetch problem details');
     } finally {
       setFetchingId(null);
@@ -402,7 +404,7 @@ function UpdateProblemForm({ onDone }) {
       if (err instanceof SyntaxError) {
         toast.error('Invalid JSON format');
       } else {
-        toast.error(err.response?.data?.message || typeof err.response?.data === 'string' ? err.response?.data : 'Failed to update');
+        toast.error(getRequestError(err, 'Failed to update problem'));
       }
     } finally {
       setSaving(false);
@@ -527,7 +529,7 @@ function UpdateProblemForm({ onDone }) {
   );
 }
 
-function VideoProblemForm({ onDone }) {
+function VideoProblemForm() {
   const [problems, setProblems] = useState([]);
   const [videos, setVideos] = useState({});
   const [loading, setLoading] = useState(true);
@@ -543,7 +545,7 @@ function VideoProblemForm({ onDone }) {
     try {
       const [problemRes, videoRes] = await Promise.all([
         axiosClient.get('/problem/getAllProblem'),
-        axiosClient.get('/video/all').catch(() => ({ data: [] })),
+        axiosClient.get('/video/all'),
       ]);
       setProblems(Array.isArray(problemRes.data) ? problemRes.data : []);
       const videoMap = {};
@@ -552,7 +554,7 @@ function VideoProblemForm({ onDone }) {
       });
       setVideos(videoMap);
     } catch (err) {
-      toast.error('Failed to load problems');
+      toast.error(getRequestError(err, 'Failed to load video problems'));
     } finally {
       setLoading(false);
     }
@@ -580,15 +582,13 @@ function VideoProblemForm({ onDone }) {
       formData.append('signature', sig.signature);
       formData.append('public_id', sig.public_id);
 
-      const uploadRes = await fetch(sig.upload_url, {
-        method: 'POST',
-        body: formData,
+      const uploadRes = await axios.post(sig.upload_url, formData, {
+        timeout: 5 * 60 * 1000,
+        onUploadProgress: (event) => {
+          if (event.total) setUploadProgress(Math.round((event.loaded * 100) / event.total));
+        },
       });
-
-      if (!uploadRes.ok) {
-        throw new Error('Cloudinary upload failed');
-      }
-      const cloudData = await uploadRes.json();
+      const cloudData = uploadRes.data;
 
       // Step 3: Save metadata to our backend
       await axiosClient.post('/video/save', {
@@ -599,9 +599,9 @@ function VideoProblemForm({ onDone }) {
       });
 
       toast.success('Video uploaded successfully!');
-      fetchData();
+      await fetchData();
     } catch (err) {
-      toast.error(err?.response?.data?.error || err.message || 'Upload failed');
+      toast.error(err?.response?.data?.error || getRequestError(err, 'Upload failed'));
     } finally {
       setUploadingId(null);
       setUploadProgress(0);
@@ -613,9 +613,9 @@ function VideoProblemForm({ onDone }) {
     try {
       await axiosClient.delete(`/video/delete/${problemId}`);
       toast.success('Video deleted');
-      fetchData();
+      await fetchData();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Delete failed');
+      toast.error(err?.response?.data?.error || getRequestError(err, 'Delete failed'));
     } finally {
       setDeletingId(null);
     }
@@ -749,7 +749,7 @@ function VideoProblemForm({ onDone }) {
                     )}>
                       {isUploading ? (
                         <>
-                          <RefreshCw className="w-3 h-3 animate-spin" /> Uploading...
+                          <RefreshCw className="w-3 h-3 animate-spin" /> Uploading {uploadProgress}%
                         </>
                       ) : (
                         <>
@@ -758,6 +758,7 @@ function VideoProblemForm({ onDone }) {
                             type="file"
                             accept="video/*"
                             className="hidden"
+                            disabled={Boolean(uploadingId)}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handleUpload(problem._id, file);
@@ -855,9 +856,9 @@ export default function AdminPanel() {
             </button>
             <GlassCard className="p-6">
               {activeForm === 'create' && <CreateProblemForm onDone={() => setActiveForm(null)} />}
-              {activeForm === 'update' && <UpdateProblemForm onDone={() => setActiveForm(null)} />}
-              {activeForm === 'delete' && <DeleteProblemForm onDone={() => setActiveForm(null)} />}
-              {activeForm === 'video' && <VideoProblemForm onDone={() => setActiveForm(null)} />}
+              {activeForm === 'update' && <UpdateProblemForm />}
+              {activeForm === 'delete' && <DeleteProblemForm />}
+              {activeForm === 'video' && <VideoProblemForm />}
               {activeForm === 'import' && <ImportLeetCodeForm onDone={() => setActiveForm(null)} />}
             </GlassCard>
           </div>

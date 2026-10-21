@@ -1,35 +1,91 @@
-const { fetchLeetCodeProblem } = require("../utils/leetcodeUtility");
+const { fetchLeetCodeProblem } = require('../utils/leetcodeUtility');
 
-const getLeetCodeProblem = async (req, res) => {
-  const { slug } = req.params;
+const topicMap = {
+  array: 'array',
+  'linked-list': 'linkedList',
+  graph: 'graph',
+  'dynamic-programming': 'dp',
+  math: 'math',
+  greedy: 'greedy',
+  backtracking: 'backtracking',
+  string: 'string',
+  tree: 'tree',
+  'binary-tree': 'tree',
+  'binary-search-tree': 'tree',
+  'heap-priority-queue': 'heap',
+  heap: 'heap',
+  'hash-table': 'hashTable',
+  'two-pointers': 'twoPointers',
+  'bit-manipulation': 'bitManipulation',
+  stack: 'stack',
+  queue: 'queue',
+  design: 'design',
+  recursion: 'recursion',
+  'divide-and-conquer': 'divideAndConquer',
+  'sliding-window': 'slidingWindow',
+  'union-find': 'unionFind',
+  'binary-search': 'binary-search',
+};
 
-  if (!slug) {
-    return res.status(400).json({ message: "Slug is missing" });
+const decodeHtml = (value) => value
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&quot;/gi, '"')
+  .replace(/&#39;|&apos;/gi, "'")
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&amp;/gi, '&')
+  .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+  .replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)));
+
+const htmlToText = (html) => decodeHtml(html
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<\/(?:p|div|li)>/gi, '\n')
+  .replace(/<[^>]*>/g, ''))
+  .replace(/\r/g, '')
+  .trim();
+
+const extractExamples = (content = '') => {
+  const cases = [];
+  const blocks = [...content.matchAll(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi)].map((match) => match[1]);
+
+  for (const block of blocks) {
+    const text = htmlToText(block);
+    const input = text.match(/(?:^|\n)\s*Input:\s*([\s\S]*?)(?=\n\s*Output:|$)/i)?.[1]?.trim();
+    const output = text.match(/(?:^|\n)\s*Output:\s*([\s\S]*?)(?=\n\s*(?:Explanation|Input):|$)/i)?.[1]?.trim();
+    const explanation = text.match(/(?:^|\n)\s*Explanation:\s*([\s\S]*?)$/i)?.[1]?.trim() || '';
+    if (input && output) cases.push({ input, output, explanation });
   }
 
-  const normalizedSlug = slug.toLowerCase().trim().replace(/\s+/g, '-');
+  return cases;
+};
+
+const getLeetCodeProblem = async (req, res) => {
+  const normalizedSlug = String(req.params.slug || '').trim().toLowerCase().replace(/\s+/g, '-');
+  if (!normalizedSlug) return res.status(400).json({ message: 'LeetCode title slug is required' });
 
   try {
-    const problemData = await fetchLeetCodeProblem(normalizedSlug);
+    const problem = await fetchLeetCodeProblem(normalizedSlug);
+    const codeSnippets = (problem.codeSnippets || [])
+      .filter((snippet) => ['cpp', 'c++', 'java', 'javascript'].includes(String(snippet.langSlug || snippet.lang).toLowerCase()))
+      .map((snippet) => ({
+        language: String(snippet.langSlug || snippet.lang).toLowerCase() === 'cpp' ? 'c++' : String(snippet.lang).toLowerCase(),
+        initialCode: snippet.code,
+      }));
 
-    if (!problemData) {
-      return res.status(404).json({ message: `Problem '${normalizedSlug}' not found on LeetCode or API returned null` });
-    }
-
-    // Format the response for the frontend
-    const formattedProblem = {
-      title: problemData.title,
-      description: problemData.content,
-      difficulty: problemData.difficulty.toLowerCase(),
-      tags: problemData.topicTags.map(tag => tag.slug),
-      codeSnippets: problemData.codeSnippets,
-      sampleTestCase: problemData.sampleTestCase,
-      exampleTestcases: problemData.exampleTestcases
-    };
-
-    res.status(200).json(formattedProblem);
+    return res.status(200).json({
+      title: problem.title,
+      description: problem.content || '',
+      difficulty: String(problem.difficulty || 'easy').toLowerCase(),
+      tags: (problem.topicTags || []).map((tag) => topicMap[tag.slug]).filter(Boolean),
+      visibleTestCases: extractExamples(problem.content),
+      codeSnippets,
+      sampleTestCase: problem.sampleTestCase || '',
+    });
   } catch (error) {
-    res.status(500).json({ message: "Error fetching from LeetCode", error: error.message });
+    const notFound = /not found/i.test(error.message || '');
+    return res.status(notFound ? 404 : 502).json({
+      message: notFound ? error.message : 'Could not fetch this problem from LeetCode. Please try again.',
+    });
   }
 };
 

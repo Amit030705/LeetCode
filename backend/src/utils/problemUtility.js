@@ -1,113 +1,84 @@
 const axios = require('axios');
 
+const JUDGE0_URL = 'https://judge0-ce.p.rapidapi.com';
+const JUDGE0_HOST = 'judge0-ce.p.rapidapi.com';
 
-const getLanguageById = (lang)=>{
+const getLanguageById = (language = '') => {
+  const languageIds = {
+    'c++': 54,
+    cpp: 54,
+    java: 62,
+    javascript: 63,
+  };
 
-    const language = {
-        "c++":54,
-        "java":62,
-        "javascript":63
+  return languageIds[String(language).toLowerCase()];
+};
+
+const getJudge0Headers = () => {
+  if (!process.env.JUDGE0_KEY) {
+    throw new Error('JUDGE0_KEY is not configured');
+  }
+
+  return {
+    'x-rapidapi-key': process.env.JUDGE0_KEY,
+    'x-rapidapi-host': JUDGE0_HOST,
+    'Content-Type': 'application/json',
+  };
+};
+
+const submitBatch = async (submissions) => {
+  if (!Array.isArray(submissions) || submissions.length === 0) {
+    throw new Error('At least one test submission is required');
+  }
+
+  const { data } = await axios.post(`${JUDGE0_URL}/submissions/batch`, {
+    submissions,
+  }, {
+    params: { base64_encoded: 'false' },
+    headers: getJudge0Headers(),
+    timeout: 20000,
+  });
+
+  if (!Array.isArray(data) || data.some((item) => !item.token)) {
+    throw new Error('Judge0 did not return submission tokens');
+  }
+
+  return data;
+};
+
+const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+const submitToken = async (resultTokens) => {
+  if (!Array.isArray(resultTokens) || resultTokens.length === 0) {
+    throw new Error('No Judge0 submission tokens were provided');
+  }
+
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now();
+    const { data } = await axios.get(`${JUDGE0_URL}/submissions/batch`, {
+      params: {
+        tokens: resultTokens.join(','),
+        base64_encoded: 'false',
+        fields: '*',
+      },
+      headers: getJudge0Headers(),
+      timeout: Math.min(10000, remainingMs),
+    });
+
+    const submissions = data?.submissions;
+    if (!Array.isArray(submissions) || submissions.length !== resultTokens.length) {
+      throw new Error('Judge0 returned an invalid result');
     }
 
+    if (submissions.every((submission) => Number(submission.status_id) > 2)) {
+      return submissions;
+    }
 
-    return language[lang.toLowerCase()];
-}
-
-
-const submitBatch = async (submissions)=>{
-
-
-const options = {
-  method: 'POST',
-  url: 'https://judge0-ce.p.rapidapi.com/submissions/batch',
-  params: {
-    base64_encoded: 'false'
-  },
-  headers: {
-    'x-rapidapi-key': process.env.JUDGE0_KEY,
-    'x-rapidapi-host': 'judge0-ce.p.rapidapi.com',
-    'Content-Type': 'application/json'
-  },
-  data: {
-    submissions
+    await delay(Math.min(1000, Math.max(0, deadline - Date.now())));
   }
+
+  throw new Error('Judge0 timed out while running the reference solutions');
 };
 
-async function fetchData() {
-	try {
-		const response = await axios.request(options);
-		return response.data;
-	} catch (error) {
-		console.error(error);
-	}
-}
-
- return await fetchData();
-
-}
-
-
-const waiting = async(timer)=>{
-  setTimeout(()=>{
-    return 1;
-  },timer);
-}
-
-// ["db54881d-bcf5-4c7b-a2e3-d33fe7e25de7","ecc52a9b-ea80-4a00-ad50-4ab6cc3bb2a1","1b35ec3b-5776-48ef-b646-d5522bdeb2cc"]
-
-const submitToken = async(resultToken)=>{
-
-const options = {
-  method: 'GET',
-  url: 'https://judge0-ce.p.rapidapi.com/submissions/batch',
-  params: {
-    tokens: resultToken.join(","),
-    base64_encoded: 'false',
-    fields: '*'
-  },
-  headers: {
-    'x-rapidapi-key': process.env.JUDGE0_KEY,
-    'x-rapidapi-host': 'judge0-ce.p.rapidapi.com'
-  }
-};
-
-async function fetchData() {
-	try {
-		const response = await axios.request(options);
-		return response.data;
-	} catch (error) {
-		console.error(error);
-	}
-}
-
-
- while(true){
-
- const result =  await fetchData();
-
-  const IsResultObtained =  result.submissions.every((r)=>r.status_id>2);
-
-  if(IsResultObtained)
-    return result.submissions;
-
-  
-  await waiting(1000);
-}
-
-
-
-}
-
-
-module.exports = {getLanguageById,submitBatch,submitToken};
-
-
-
-
-
-
-
-
-// 
-
-
+module.exports = { getLanguageById, submitBatch, submitToken };
